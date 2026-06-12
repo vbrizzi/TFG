@@ -1,0 +1,832 @@
+Gestión de proyecto
+Consigna del entregable
+Autoevaluación
+Referencias
+Prototipado tecnológico Lectura 3: Gestión de proyecto
+
+-- 1 of 32 --
+
+En esta lectura retomamos la visión del proyecto y dejaremos a un lado el prototipado ¿por qué? Porque los temas
+que trataremos (tales como, seguridad, análisis de costos, análisis de riesgo, conclusiones, etc.) deben expresarse
+en término del proyecto y no del prototipo tecnológico.
+Antes de comenzar con el desarrollo de estos tópicos te invitamos a ver el siguiente video.
+Video 1: Gestión del proyecto
+Para comenzar, revisaremos lo que necesitas definir respecto del acceso a la aplicación. En el siguiente esquema
+puedes observar algunos aspectos a considerar y que estarán en función del proyecto desarrollado.
+Figura 1: Características que deben contener los accesos a sistemas
+Lección 1 de 4
+Gestión de proyecto
+Verify to continue
+We detected a high number of errors from your connection. To
+continue, please confirm that youâ€™re a human (and not a
+spambot).
+reCAPTCHA
+I'm not a robot
+Privacy - Terms
+Seguridad	1
+
+-- 2 of 32 --
+
+Fuente: elaboración propia.
+Ejemplo:
+1. El correo electrónico del usuario se utiliza junto con la contraseña para el inicio de sesión. El mismo
+debe ser único; es decir, no debe existir en la base datos.
+2. La contraseña debe cumplir los siguientes requisitos:
+Tener, como mínimo, 8 caracteres.
+Contener, al menos, una letra mayúscula.
+Poseer, al menos, una letra minúscula.
+
+-- 3 of 32 --
+
+Disponer de, al menos, un número.
+Tener, al menos, un carácter especial.
+3. Luego de 5 intentos de inicio de sesión fallidos, la contraseña caducará.
+4. La contraseña se encripta mediante la función bcryp, que permite almacenarla de forma segura en la
+base de datos.
+5. La aplicación maneja dos perfiles:
+Usuario común: tiene acceso a realizar búsquedas, añadir y editar establecimientos, administrar
+lugares favoritos dentro de su sesión, calificar y efectuar comentarios. Por otro lado, no puede editar
+establecimientos que posean dueños.
+Usuario dueño: es un tipo de usuario que se reconoce en la aplicación como dueño de un
+establecimiento, previo a una autenticación del mismo. Este no solo puede realizar las mismas
+acciones que un usuario común, sino que será el único usuario capaz de modificar la información de su
+establecimiento. (Gallo, 2020, p. 39)
+Aquí deberás abordar los siguientes aspectos:
+Figura 2: Confidencialidad, disponibilidad e integridad de la información
+Política de respaldo de información	2
+Resguardo y respaldo de la base de datos: los criterios de resguardo de la información requieren que
+se definan las políticas de seguridad respecto a las copias de seguridad, periodicidad de los mismos,
+lugar de almacenamiento, seguridad de acceso a los dispositivos de soporte, entre otros.
+Disponibilidad de la información: en proyectos que requieren que la información se encuentre
+accesible y disponible (por ejemplo, 24 x 7) debemos definir claramente qué sistemas de
+conectividad garantizarán ese acceso.
+Manejo de riesgos: la consideración de los riesgos respecto de la información (en cuanto a la
+disponibilidad, confidencialidad e integridad de los datos) es importante y varía según el tipo de
+proyecto. Implica, por ejemplo, estimar qué ataques externos pueden vulnerar los datos y qué
+medidas será necesario tomar para evitar o minimizar su ocurrencia. También se podrían incluir aquí
+los riesgos de caída del servicio eléctrico, la disponibilidad de los servidores, entre otros.
+
+-- 4 of 32 --
+
+Fuente: 	Facultad 	de 	Agronomía 	(s. 	f.). 	Seguridad 	de 	la 	Información. 	Recuperado 	de
+https://www.agro.uba.ar/uti/servicios/seguridad_informacion.
+Ejemplo:
+Para respaldar la información de los usuarios y del código de la aplicación, se tendrán 3 copias de los
+datos de usuario y 2 del código fuente, para asegurar la redundancia de la misma en caso de pérdidas,
+a saber:
+1. Nube
+La primera copia estará en la nube, proporcionada por el hosting gratuito de Firebase, donde el servidor
+y la base de datos NoSQL están instanciadas. Aquí se tendrán los datos originales con los cuales la
+aplicación trabaja, además del backup (copia de seguridad) de respaldo de estos datos, la cual se
+actualizará semanalmente.
+2. Servidor local
+La segunda copia de los datos de los usuarios y la primera copia del código fuente estará alojada en un
+servidor local existente en las oficinas del equipo. A este servidor solo tendrá acceso el encargado de la
+seguridad de los datos.
+3. Almacenamiento externo
+Por último, la tercera copia de los datos de los usuarios y la segunda del código fuente estarán alojadas
+en discos duros externos, los cuales serán guardados de manera física en las oficinas del equipo, pero
+en una habitación distinta a la del servidor local mencionado previamente. Además, a estos datos sólo
+tendrá acceso el encargado de la seguridad de los datos y, en casos de emergencias, la persona que
+sea delegada a esta tarea por el encargado.
+
+-- 5 of 32 --
+
+Para mantener las copias de seguridad de los datos de los usuarios actualizados, se seguirá un
+programa donde todos los días a las 00:00 horas se realizará una copia de los datos en la nube y en el
+servidor local. Los backups existentes en estas dos instancias hace más de una semana, serán
+eliminados automáticamente. En cuanto al almacenamiento externo de los datos de usuarios, estos
+serán copiados cada dos días al arrancar la jornada laboral, y los backups almacenados en estos discos
+serán eliminados de manera manual por el encargado de la seguridad de los datos después de los 15
+días de realizada la copia.
+En cuanto a las copias del código fuente, estas se realizarán siempre que la aplicación reciba una
+actualización o, en caso de que no se realice en mucho tiempo, una vez al mes, tanto en el servidor
+local como en el almacenamiento externo, respetando una jerarquía de versionado para saber qué
+funcionalidades tiene cada copia. Estos respaldos del código fuente serán eliminados después de 2
+meses desde que realizó la copia de manera manual por el encargado de la seguridad de los datos.
+(Senna, 2020, pp. 37-38)
+SUBMIT
+Sobre este punto es relevante que puedas describir el costo del proyecto, basado en el esfuerzo requerido para su
+ejecución (recursos humanos), en los costos de licencias y equipamientos necesarios. Recuerda que no debes
+realizar cálculo del retorno sobre la inversión (ROI).
+Veamos el siguiente ejemplo del proyecto de trabajo final de graduación de Maniloff, G. (2020) de la Universidad
+Siglo 21:
+Con el desarrollo del criterio de acceso a través de un usuario o clave se define la estructura del tipo de claves, la frecuencia de
+renovación y cómo se encriptarán los datos.
+Análisis de costos	3
+Verdadero.
+Falso.
+
+-- 6 of 32 --
+
+A los fines de representar el aspecto financiero de este estudio, se realizan dos propuestas:
+A. Implementar el sistema con la menor cantidad de costos fijos posibles, esto implica comprar la
+mayoría del hardware necesario. En este escenario es recomendable en las siguientes situaciones:
+Gran cantidad de esquinas semaforizadas a implementar.
+Infraestructura previa que pueda ser aprovechada.
+Contar con personal de IT capacitado.
+B. Alquilar algunos de los servicios necesarios. Esta opción presenta una menor inversión inicial, pero
+mayores costos fijos. Se recomienda en los siguientes casos:
+Implementación en pocas esquinas semaforizadas.
+No se cuenta con personal IT capacitado.
+No se dispone de hardware existente.
+En el análisis de costos se incluye en las columnas A y B a fin de especificar a cuál de las alternativas se
+refiere el costo, el lector puede de esta forma adaptar el presupuesto a su necesidad.
+A modo informativo el valor dólar vendedor del Banco Central de la República Argentina. Al día
+11/06/2020 1 U$S = $72,34. Por otro lado, en los subtotales se encuentran consideradas las
+cantidades. (p 39)
+Tabla 1: Análisis de costos de desarrollo
+Rol 	Honorarios mensuales $ 	Meses Totales 	Subtotal $
+Programador IA 	96.006,75 	3 	288.020,26
+Analista funcional 	54.744,02 	1 	54.744,02
+Ingeniero 	89.469,39 	3 	268.408,17
+Tester 	68.089,30 	3 	204.267,90
+Diseño gráfico Jr. 	34.089,50 	1 	34.089.50
+Total Desarrollo U$S (opciones A y B): 	849.529,85
+Fuente: Maniloff, G. (2020). Análisis de costos de desarrollo, p. 40.
+
+-- 7 of 32 --
+
+“Los valores referidos a mano de obra fueron tomados desde la página web del Consejo profesional de ciencias
+informáticas de la provincia de córdoba el día 11/06/2020 (CPCIPC, 2020)” (Malinoff, 2020, p. 40)
+Tabla 2: Análisis de costos operativos (opción A)
+Recurso Cant. para una
+esquina (*) Fuente Subtotal Inicial
+ar$
+Subtotal mensual
+ar$
+Servidor RDBMS i5,
+8GB RAM, con 2
+HDD de 1TB
+1
+https://www.dell.c
+om/eses/work/sho
+p/productdet
+ailstxn/poweredge
+-t440
+259.917,62 	n/a
+Licencia Windows
+2019 R 2
+1 https://www.uniq.s
+oftware/es/ 3.906,36 	n/a
+Firewall por
+hardware. 1
+http://www.mikroti
+k.com.
+ar/producto/rb201
+1uiasrm/
+22.937,78 	n/a
+Programación del
+firewall 1 https://www.mkes
+olution s.net/ 5.063,80 	n/a
+Conexión a
+internet. 1
+https://www.cable
+visionfi
+bertel.com.ar/
+n/a 	2.170,20
+Notebook Dell i5
+con 8gb ram y
+disco 1TB.
+1
+https://www.dell.c
+om/ar/empresas/p
+/inspiron-14-3467-
+laptop/pd?
+ref=PD_Family
+139.977,90 	n/a
+AP Wifi mikrotik
+modelo mAP lite. 1
+http://www.mikroti
+k.com.
+ar/producto/rbmap
+l-2ndmap-lite/
+1.446,80 	n/a
+
+-- 8 of 32 --
+
+Recurso Cant. para una
+esquina (*) Fuente Subtotal Inicial
+ar$
+Subtotal mensual
+ar$
+(*) Cámara Ojo
+Pez, se utilizan 1
+cada 2 calles a
+controlar.
+2
+https://tienda.star
+ware.com.ar/prod
+ucto/camaramodul
+o-
+omnivisionraspberr
+y-ov5647-ojo-pez-
+170g-5mp/
+7.717,95 	n/a
+(*) Raspberry Pi4 	2
+https://tienda.star
+ware.com.ar/prod
+ucto/raspberrypi-4-
+b-2gb-ram-
+kitelement14-
+completo64gb-
+dual-fan-cooler/
+26.768,80 	n/a
+Placa opto
+acopladora 2
+https://tienda.star
+ware.com.ar/prod
+ucto/modulorelay-
+arduino-4-
+canales5v-10a-
+optoacoplado/
+408,72 	n/a
+Fuente CC 5V 5A 	1
+https://tienda.star
+ware.com.ar/prod
+ucto/fuente5v5a/
+1.229,78 	n/a
+Total Operativos $ Opción A: 	469.369,52 	2.170,20
+Fuente: Maniloff, G. (2020). Análisis de costos operativos opción A, p. 40.
+Tabla 3: Análisis de costos operativos (opción B)
+Recurso
+Cantidad
+para una
+esquina (*)
+Fuente 	Subtotal Inicial ar$ 	Subtotal mensual ar$
+
+-- 9 of 32 --
+
+Recurso
+Cantidad
+para una
+esquina (*)
+Fuente 	Subtotal Inicial ar$ 	Subtotal mensual ar$
+Alquiler
+Servidor
+RDBMS i5, 8GB
+RAM, con 2
+HDD de 1TB.
+Con licencia
+Windows.
+1 https://www.hostinger
+.c om.ar/precios n/a 	2.999,94
+Notebook Dell
+i5 con 8gb ram
+y disco 1TB.
+Con licencia
+Windows.
+1
+https://www.dell.com/
+ar/empresas/p/inspir
+on-14-3467-
+laptop/pd?
+ref=PD_Family
+139.977,90 	n/a
+AP Wifi mikrotik
+modelo mAP
+lite.
+1
+http://www.mikrotik.c
+o
+m.ar/producto/rbmapl
+-2nd-map-lite/
+1.446,80 	n/a
+(*) Cámara Ojo
+Pez, se utilizan
+1 cada 2 calles
+a controlar.
+2
+https://tienda.starwar
+e.c
+om.ar/producto/cama
+ramodulo-
+omnivisionraspberry-
+ov5647-ojopez-170g-
+5mp/
+7.717,95 	n/a
+(*) Raspberry
+Pi4 2
+https://tienda.starwar
+e.c
+om.ar/producto/raspb
+er ry-pi-4-b-2gb-ram-
+kitelement14-
+completo64gb-dual-
+fan-cooler/
+26.765,80 	n/a
+
+-- 10 of 32 --
+
+Recurso
+Cantidad
+para una
+esquina (*)
+Fuente 	Subtotal Inicial ar$ 	Subtotal mensual ar$
+Placa opto
+acopladora 2
+https://tienda.starwar
+e.c
+om.ar/producto/modu
+lo-relay-arduino-4-
+canales-5v-10a-
+optoacoplado/
+408,72 	n/a
+Fuente CC 5V
+5A 1
+https://tienda.starwar
+e.c
+om.ar/producto/fuent
+e5 v5a/
+1.229,78 	n/a
+Total Operativos $ Opción B: 	177.546,95 	2.999,94
+Fuente: Maniloff, G. (2020). Análisis de costos operativos opción B, pp. 40-41.
+Cabe aclarar que “en los subtotales se encuentran consideradas las cantidades” (Malinoff, 2020, p. 42).
+Tabla 4: Resumen de precios
+Opción 	Descripción 	Inicial $ Recurrente
+Mensual $
+A Total de costos para la opción compra de
+todo el hardware. 469.369,52 	2.170,20
+B Total de costos para la opción de alquiler de
+servicios. 174.892,80 	2.999,94
+Fuente: Maniloff, G. (2020). Resumen de precio, p. 43.
+Al realizar el análisis de costos de tu proyecto, no debes considerar las licencias del software requeridas para el desarrollo, solo el
+esfuerzo en horas.
+Verdadero.
+Falso.
+
+-- 11 of 32 --
+
+SUBMIT
+En este punto, debes especificar los riesgos identificados para tu proyecto y ponderar las variables de probabilidad e
+impacto del mismo. Una manera sencilla de hacerlo es con la tabla 5, que explica el riesgo detectado, el tipo de
+riesgo y las dos variables mencionadas.
+Tabla 5: Ejemplo de matriz de riesgos
+ID 	Tipo 	Riesgo 	Probabilidad 	Impacto
+1 	Proyecto
+El error que se puede cometer en los tiempos
+estimados es muy grande y compromete al
+desarrollo del proyecto.
+Media 	Alto
+2 	Proyecto
+Por el tipo de temática a trabajar se hace difícil
+conseguir personal técnico capaz de
+desarrollar el sistema
+Bajo 	Alto
+3 	Proyecto La investigación actual en el campo trabajado
+no aporta información útil como base. Media 	Medio
+4 	Proyecto
+Los distintos tipos de recursos destinados al
+desarrollo del proyecto son insuficientes y se
+compromete el desarrollo del mismo.
+Media 	Alto
+5 	Técnico
+El tipo de headset seleccionado no brinda datos
+suficientes como para poder generalizar y
+categorizar sus señales.
+Media 	Medio
+6 	Técnico
+El tiempo de respuesta de la aplicación no
+cumple con los estándares de calidad
+requeridos por este tipo de industria.
+Media 	Alto
+Fuente: León, F. (2018). Matriz de riesgos, p. 72.
+Además, debes presentar un plan de contingencia para evitar, transferir, mitigar o aceptar el riesgo.
+Análisis de riesgos	4
+
+-- 12 of 32 --
+
+Cabe aclarar que puedes utilizar otras grillas más complejas o completas; por ejemplo, donde incluyas el momento
+posible de ocurrencia, el responsable del monitoreo de la ocurrencia, el plan de contingencia, entre otras variables.
+A continuación, observa la aplicación del principio de Pareto que se utilizó para analizar los riesgos en el proyecto de
+trabajo final de graduación de Lavilla, C. (2020) de la Universidad Siglo 21. En este caso se utilizó la técnica de
+análisis de causa raíz que es útil para identificar un problema, determinar las causas que lo ocasionan y desarrollar
+acciones preventivas (Project Management Institute, 2017).
+Tabla 6: Riesgos identificados del proyecto
+Tipo 	Riesgo 	Causa
+Proyecto La planificación de proyecto es muy
+optimista
+Debido a la falta de experiencia, la
+planificación no es realista.
+Proyecto Error de diseño (se debe rediseñar el
+producto).
+El desarrollo de funciones de software
+erróneas requiere volver a diseñarlas e
+implementarlas.
+Proyecto Retraso en la contratación de los
+RR.HH.
+La contratación del personal toma más
+tiempo de lo establecido.
+Proyecto 	Rotación de personal calificado.
+El personal con mayor experiencia
+abandona el proyecto por mejores
+propuestas laborales.
+Proyecto 	Vulneración del sistema. 	Sistema poco seguro.
+Proyecto y Producto Cambios de costos del proyecto por
+inestabilidad económica (inflación).
+Los costos de hardware se incrementan
+rápidamente debido a la evolución continua
+del tipo de cambio.
+Fuente: adaptado de Mc Connell, 1997.
+Análisis cuantitativo de los riesgos
+Una vez identificados los riesgos del producto se procederá a ponderar las probabilidades de ocurrencia y los
+impactos de estos. Para ello, se utilizó la siguiente matriz de riesgo.
+Tabla 7: Matriz de riesgo
+
+-- 13 of 32 --
+
+Fuente: elaboración propia.
+Tabla 8: Análisis cuantitativo de riesgos
+Análisis cuantitativo de los riesgos detectados
+Riesgo 	Probabilidad de ocurrencia 	Efecto o impacto
+Planificación de proyecto muy
+optimista 78% 	3
+Error de diseño (se debe rediseñar
+el producto) 58% 	4
+Retraso en la contratación de los
+RR.HH. 55% 	4
+Rotación de personal calificado 	40% 	3
+Vulneración del sistema 	25% 	2
+Cambios de costos del proyecto
+por inestabilidad económica
+(inflación)
+10% 	5
+Fuente: elaboración propia.
+Análisis cuantitativo de los riesgos
+Para poder realizar el análisis cuantitativo calcularemos la exposición al riesgo que, como indica Mc Connell (1997):
+“una definición de riesgo es ‘pérdida no esperada’. La exposición a riesgos es igual a la probabilidad de pérdida no
+esperada multiplicada por la magnitud de la pérdida” (p. 101). Además, ordenaremos la tabla de mayor a menor
+exposición al riesgo.
+
+-- 14 of 32 --
+
+Tabla 9: Análisis cuantitativo y grado de exposición
+Riesgo Probabilidad
+de ocurrencia
+Efecto o
+impacto
+Grado de
+exposición Porcentaje 	% Acumulado
+Cambios de
+costos del
+proyecto por
+inestabilidad
+económica
+(inflación)
+78% 	3 	2,34 	25,8% 	26%
+Planificación
+de proyecto
+muy optimista
+58% 	4 	2,32 	25,6% 	52%
+Error de diseño
+(se debe
+rediseñar el
+producto)
+55% 	4 	2,2 	24,3% 	76%
+Rotación de
+personal
+calificado
+40% 	3 	1,2 	13,2% 	89%
+Retraso en la
+contratación
+de los RR.HH.
+25% 	2 	0,5 	5,5% 	95%
+Vulneración del
+sistema 10% 	5 	0,5 	5,5% 	100%
+Fuente: elaboración propia.
+Aplicación del principio de Pareto
+A partir del grado de exposición al riesgo podemos aplicar el principio de Pareto. Levine, Krehbiel y Berenson (2014)
+indican: “Una gráfica de Pareto tiene la capacidad de separar a ‘los pocos vitales’ de ‘los muchos triviales’, con lo que
+permite centrar la atención en las categorías importantes” (p. 42). Si trasladamos este concepto al análisis de
+riesgo, podemos decir que se busca identificar el 20 % de los riesgos que tienen la potencialidad de causar el 80 %
+de los problemas en el proyecto. Para realizar el gráfico de este principio, se ordenan las ocurrencias por sus
+probabilidades de mayor a menor.
+
+-- 15 of 32 --
+
+Figura 3: Principio de Pareto de la exposición al riesgo
+Fuente: elaboración propia.
+Plan de contingencia
+En el diagrama de Pareto pudimos representar aquellos riesgos para los cuales debemos aplicar acciones de
+contingencia:
+Cambios de costos del proyecto por inestabilidad económica (inflación).
+Error de diseño (se debe rediseñar el producto).
+Planificación de un proyecto muy optimista.
+Tabla 10: Plan de contingencia
+Plan de contingencia para los riesgos de mayor exposición
+Riesgo 	Plan de contingencia
+
+-- 16 of 32 --
+
+Plan de contingencia para los riesgos de mayor exposición
+Cambios de costos del proyecto por inestabilidad
+económica (inflación)
+Solicitar al cliente el pago de un anticipo que cubra la
+adquisición de los elementos importados
+indispensables para el proyecto al comienzo del
+mismo.
+Error de diseño (se debe rediseñar el producto) Retroalimentación continua con el cliente como beta
+tester e incrementar las inspecciones de diseño.
+Planificación de proyecto muy optimista
+Realizar estimación de tiempos de proyecto
+pesimista, analizar todos los factores que influyen en
+el proyecto para realizar una gestión de riesgo
+temprana.
+Fuente: elaboración propia.
+Podrás apreciar en este último ejemplo, que el análisis de riesgo tiene más sustento si se desarrolla el plan de
+contingencia que lo acompaña.
+Para desarrollar las conclusiones del proyecto tomarás, como línea de seguimiento y trazabilidad, el nombre del
+proyecto, los motivos de tu elección para llevarlo a cabo y los objetivos planteados. En este apartado comentarás
+qué lograste alcanzar, si se cumplió el objetivo y de qué manera. Además, tendrás que presentar qué te permitió
+alcanzar esos logros desde una mirada profesional y personal.
+Recuerda que la conclusión es el cierre de tu trabajo final de graduación, no lo tomes como algo superfluo ya que es
+un elemento muy importante.
+Ejemplo de conclusión:
+Se llevó a cabo un proyecto de una aplicación móvil, que cuenta con acceso a información de
+establecimientos gastronómicos aptos para celíacos. El motivo que impulsó esta idea fue la intención
+de disminuir la desigualdad que padece actualmente este grupo de personas. Los objetivos planteados
+fueron alcanzados con éxito, ya que el sistema construido permite que sus usuarios colaboren entre
+ellos, creando así, una base de datos amplia con establecimientos que ofrecen opciones libres de
+gluten. La aplicación cuenta con la posibilidad de visualizar el nivel y calidad de lo que se les ofrece, no
+solo por la descripción que cada lugar brinda, sino también por experiencias reales de otros integrantes,
+Conclusiones	5
+
+-- 17 of 32 --
+
+que pueden plasmarlo en forma de comentarios o calificaciones. La misma también contiene distintos
+filtros de búsqueda para permitir mayor eficiencia en los resultados.
+El desarrollo de este sistema me permitió, como alumna, volcar muchos de los conocimientos
+adquiridos a lo largo de la carrera, experimentando de principio a fin el arduo proceso que conlleva la
+realización de un software. Personalmente, el mayor desafío que implicó esto, estuvo relacionado a las
+tecnologías utilizadas ya que, si bien he desarrollado antes, nunca fue a este nivel de exigencia. Por
+este motivo para alcanzar la meta propuesta, fue necesario un gran esfuerzo en investigación y
+aprendizaje de un nuevo lenguaje de programación y nuevas librerías del mismo, como así también
+contenidos referente a la celiaquía. Es por ello que me resulta muy satisfactorio el haber cumplido los
+objetivos planteados, los cuales me permitieron obtener una gran cantidad de conocimientos
+enriquecedores, no solo desde el punto de vista personal, sino también desde el profesional, creciendo
+como tal. (Gallo, 2020, pp. 44-45)
+Se trata de una síntesis breve, pero exhaustiva que recoge un extracto del trabajo realizado. Su objetivo es
+proporcionar a los lectores una visión clara de lo que has trabajado y las conclusiones a las que has llegado, sin
+necesidad de abordar la lectura completa del TFG.
+Este resumen termina con una lista de palabras clave (se colocan en un párrafo aparte y debe tener, como mínimo,
+3 palabras clave y, como máximo, 5). Este punto es importante para quien lee el TFG y le permite saber dónde está
+el foco de tu proyecto.
+A 	continuación, 	mencionaremos 	particularidades 	que 	debe 	poseer 	un 	resumen 	de 	acuerdo 	con 	las
+recomendaciones de la American Psychological Association (2010).
+Resumen	6
+¿Qué características debe tener un buen resumen?
+Reflejar correcta y adecuadamente el objetivo y contenido de tu trabajo.
+Informar y no evaluar sobre lo realizado.
+Utilizar un lenguaje claro y simple de leer.
+Exponer ideas conectadas lógicamente.
+Ser breve, pero vasto. Para ello, debes lograr que cada oración que escribas en él contenga el máximo de información
+posible.
+
+-- 18 of 32 --
+
+Utilizar verbos en lugar de los sustantivos equivalentes (por ejemplo, instaló en lugar de una instalación de).
+¿En qué debo tener cuidado para no cometer errores en la redacción?
+No repitas el título del trabajo dentro del resumen.
+No incluyas ninguna información, dato o conclusión que no figure en el cuerpo del trabajo.
+No agregues detalles ni comentarios acerca de lo que figura en el cuerpo del trabajo de prototipado tecnológico. La
+inclusión de detalles innecesarios es un error frecuente.
+No incluyas referencias bibliográficas, figuras ni cuadros.
+No incluyas abreviaturas o siglas, excepto si hay una expresión larga que debas mencionar varias veces.
+¿Qué formalidades de presentación debe cumplir?
+Comenzar en una nueva página después del índice.
+Escribir la palabra Resumen (con letra inicial mayúscula), centrada y en la parte superior de la página
+Abajo, en la línea siguiente, desarrolla el contenido del resumen en un solo párrafo, sin sangría y con alineación justificada.
+Redactar en tiempo pretérito (pasado) porque se refiere a un trabajo ya realizado.
+Tener una extensión entre 150 a 250 palabras (en este total no debes tener en cuenta las palabras clave que se tratarán
+próximamente).
+Debajo del resumen debes colocar una línea en blanco y, a continuación, sin sangría debes colocar el título Palabras clave (en
+Times New Roman, tamaño 12 y en negrita). Allí agregarás las palabras (recuerda que deben ser entre 3 y 5 palabras clave).
+Las palabras clave son términos descriptivos de tu trabajo, por lo tanto, deben ser representativas del mismo. Sirven para
+indizarlo y, de este modo, los lectores potencialmente interesados en tu trabajo podrán hallarlo más fácilmente. Es importante
+que utilices palabras clave estandarizadas (vocabulario ya estructurado), tales como las que se pueden hallar online, por
+ejemplo, 	en 	el 	Tesauro 	o 	Taxonomía 	del 	IEEE 	(Institute 	of 	Electrical 	and 	Electronics 	Engineers):
+https://www.ieee.org/publications/services/thesaurus-access-page.html, el cual requiere un registro gratuito de usuario.
+Ejemplo de resumen con palabras clave
+
+-- 19 of 32 --
+
+El mismo texto del resumen que escribiste en español debes traducirlo al inglés y transcribirlo. El abstract se incluye
+a continuación del resumen, en una nueva página y bajo el título de Abstract. Incluirás, asimismo, las palabras clave,
+pero ahora bajo el nombre de Keywords y agregarás los términos en idioma inglés.
+Ejemplo de abstract en relación al resumen mostrado:
+Nowadays, for a person with celiac disease it can be an odyssey to try to eat out. Unfortunately, there
+aren’t many places offering options for them and 100% gluten-free. Even being this one of the most
+frequent intestinal diseases in Argentina, there aren’t laws or regulations that try to achieve more equality
+in this area. Sometimes, there is ignorance about the disease, even in places that offer meals for them. It
+needs clarifying, all information they were acquired through different methods such as observation and
+surveys. You can conclude this group of people need store information about food places with the
+possibility of share information and make them known among the rest of the celiac; to collaborate with
+each other and get more possibilities. This goal was achieved by creating a mobile application that meets
+the proposed requirements. Now, celiacs have a system especially for them and adapted to their needs.
+Keywords: celiac disease, gluten free, mobile application, food places. (Gallo, 2020, p. 3)
+En la actualidad, para una persona con celiaquía puede ser toda una odisea intentar comer fuera de su casa.
+Desafortunadamente, no existen muchos establecimientos gastronómicos que ofrezcan opciones para ellos y
+aseguren al 100 % estar libres de gluten. Incluso, siendo esta una de las enfermedades intestinales más frecuentes
+en Argentina, tampoco existen legislaciones o reglamentos que traten de lograr más igualdad en este ámbito.
+Muchas veces hay desconocimiento sobre la enfermedad, aún en lugares que ofrecen comidas para celíacos. Todo
+lo anteriormente mencionado, fue recabado a través de distintos métodos de recolección, tales como la
+observación y encuestas. Esto permitió visualizar que existía una necesidad en este grupo de personas, de tener
+algún medio donde puedan compartir información de establecimientos y darlos a conocer entre el resto de celíacos;
+con el fin de colaborar entre ellos y hacer más grande su espectro de posibilidades. Este objetivo fue alcanzado
+creando una aplicación móvil que cumple con los requisitos propuestos y, de este modo, los celíacos ahora cuentan
+con un sistema especialmente creado para ellos y adaptado a sus necesidades.
+Palabras clave: celiaquía, libre de gluten, aplicación móvil, establecimientos gastronómicos. (Gallo, 2020, p. 2)
+Abstract	7
+
+-- 20 of 32 --
+
+SUBMIT
+Según el tipo de proyecto que has realizado, seguramente tendrás información de los datos relevados, por ejemplo,
+encuestas o entrevistas que tuviste que realizar, reglamentos, normativas que condicionaron el trabajo. Todos estos
+documentos los puedes incorporar como anexos.
+Recuerda que los anexos se incluyen por orden de aparición, deben numerarse y estar debidamente titulados.
+Además, el contenido debe aportar y/o complementar los temas abordados en el TFG.
+Finalmente, el anexo debe tener una extensión apropiada. Por ejemplo, si se trabaja con una normativa o ley, solo
+deberías mencionar aquellos apartados que impactan en el proyecto o se encuentran involucrados en él y no
+transcribir toda la ley.
+C O NT I NU A R
+¿Cuál o cuáles de las siguientes afirmaciones es representativa del resumen o abstract y de las palabras clave o keywords de un
+trabajo de prototipado tecnológico? Puedes escoger más de una opción.
+Anexos	8
+En el resumen o abstract es imprescindible indicar los objetivos específicos del proyecto.
+El resumen o abstract debe contener el título del trabajo ya que es representativo no solo del trabajo, sino
+del contenido del mismo.
+El resumen o abstract debe tener una extensión que varía entre las 150 y 250 palabras.
+Luego del resumen o abstract se deben colocar las palabras clave o keywords (escoger entre 3 y 5
+palabras).
+El resumen o abstract debe escribirse en presente porque se redacta un extracto de lo que aborda el
+trabajo.
+
+-- 21 of 32 --
+
+
+
+-- 22 of 32 --
+
+En esta tercera entrega, mantendremos el mismo estilo de las entregas anteriores:
+Debes desarrollar la actividad en un archivo de word, con el texto del cuerpo principal respetando fuente Times New
+Roman 12 pt., interlineado 1,5 líneas y sangría de primera línea de 1,27 cm; alineación justificada. Recuerda además
+los lineamientos generales para títulos (fuente Times New Roman, 14pt., negrita, alineación al centro) y subtítulos
+(fuente Times New Roman, 12 pt., cursiva sin negrita, alineación a la izquierda). Su extensión no es fija y estará en
+relación con la documentación que requieras para tu proyecto.
+El entregable debe contener todos los tópicos de las anteriores entregas (primera y segunda), más las propias de la
+presente.
+Seguidamente repasamos los títulos ya abordados:
+Lección 2 de 4
+Consigna del entregable
+Título
+Introducción
+Justificación
+Objetivo General del Proyecto
+Objetivos Específicos del Proyecto
+Marco Teórico Referencial
+Diseño Metodológico
+Relevamiento
+Proceso de Negocios
+Diagnóstico y Propuesta
+Objetivo, Límites y Alcances del Prototipo
+Descripción del Sistema
+
+-- 23 of 32 --
+
+A continuación, expondremos los puntos a agregar en este tercer entregable:
+Seguridad 	–
+Aquí deberás redactar con sustento técnico dos aspectos relacionados a la seguridad en el sistema:
+Acceso a la aplicación: descripción general de las políticas de seguridad relacionadas al acceso al sistema, tales como,
+contraseñas y validación de usuarios, como así también el manejo de perfiles.
+Política de respaldo de información: describir la política de respaldo de información indicando de qué forma se iniciará el proceso
+(automático, programado, entre otros); software y hardware interviniente y eventualmente el factor humano necesario; y dónde se
+almacenarán los datos.
+Análisis de costos 	–
+En el presente apartado deberás realizar un análisis de costos de desarrollo y operativos con valores reales y actuales del mercado.
+Tendrás en cuenta tanto el esfuerzo en horas hombre, como así también si requieres de licencias de software, hardware (sensores, PCs,
+lectores de códigos, servidores, otros), alquiler de servicios (hosting, alquiler de plataformas de computación en la nube, entre otros).
+Deberás indicar la cantidad de recursos necesarios para llevar a cabo la propuesta de solución, y sus principales tareas a desarrollar, así
+como su costo por hora y/o mensual por el periodo estimado que durará el desarrollo. Así mismo incluir gastos de software y hardware
+especificados en el párrafo anterior. Puedes resumir este apartado utilizando una tabla, y deberás citar las fuentes de dónde has
+recolectado la información sobre los costos detectados.
+Análisis de Riesgos 	–
+Aquí deberás presentar una tabla en donde enumeres los riesgos detectados para el desarrollo del proyecto, su probabilidad de
+ocurrencia (Alta – Intermedia – Baja), su efecto/impacto en el proyecto en caso de ocurrencia (del 1: bajo al 5: muy alto), y una
+descripción de acciones de contingencia. Te sugerimos para sustentar este análisis, basarte en técnicas, como puede ser el Principio de
+Pareto, entre otras estudiadas en Administración de Proyectos.
+Conclusiones 	–
+Para desarrollar las conclusiones, toma el nombre del proyecto, las razones del por qué lo llevaste a cabo y los objetivos que te
+planteaste. Y sobre ellos deberás comentar que lograste alcanzar, si se cumplió el objetivo, de qué manera y cómo lo aplicaste.
+No olvides mencionar qué te permitió lograr desde una mirada profesional y personal.
+Anexos 	–
+
+-- 24 of 32 --
+
+Capítulos a incluir después del índice
+A modo de resumen te brindaremos la siguiente tabla para que ubiques los títulos que contiene este entregable.
+Observa que los títulos respetan el formato indicado y que no contienen subtítulos, por este motivo están marcados
+en color gris.
+Tabla 1: Títulos, subtítulos
+Título 	Subtítulo
+Seguridad
+Análisis de Costos
+Análisis de Riesgos
+Este punto no es obligatorio sólo debes incorporarlo al final del trabajo de graduación cuando los documentos y explicaciones sean
+pertinentes como información que contribuya a tu proyecto. Recuerda que el contenido que incorpores en este tópico debe ser limitado
+solo a lo relevante y esencial.
+Resumen
+Es una síntesis breve pero exhaustiva que resume el trabajo realizado. Su objetivo es proporcionar a
+los lectores una visión clara de lo que has trabajado y a las conclusiones arribadas. Debe concluir con
+las palabras clave (se coloca en un párrafo aparte y debe tener como mínimo 3 palabras clave y como
+máximo 5), este punto es importante para quien lee el mismo y saber dónde está el foco de tu
+proyecto.
+El resumen sin las palabras clave debe tener como mínimo 150 palabras y un máximo de 250.
+Abstract
+Aquí se expresa en inglés lo narrado en el capítulo Resumen, en hoja separada.
+
+-- 25 of 32 --
+
+Título 	Subtítulo
+Conclusiones
+Anexos
+Resumen
+Abstract
+Fuente: Elaboración propia.
+C O NT I NU A R
+
+-- 26 of 32 --
+
+Puedes realizar la autoevaluación todas las veces que lo necesites. La nota no se registrará en tu libro de calificaciones, sino que
+funciona como un ejercicio de chequeo de tu entregable.
+Lección 3 de 4
+Autoevaluación
+
+-- 27 of 32 --
+
+Pregunta
+01/04
+¿Cuáles de los siguientes puntos son considerados como parte de los temas que desarrollaste en el apartado sobre seguridad?
+Accesos de usuarios.
+Respaldo de información.
+Accesibilidad a los datos.
+Análisis de riesgos.
+Costos incurridos en el proyecto.
+
+-- 28 of 32 --
+
+Pregunta
+02/04
+¿Cuáles de las siguientes variables ponderaste al momento de realizar el análisis de riesgo en tu proyecto?
+Probabilidad de ocurrencia.
+Impacto.
+Plan de acción.
+Plan de contingencia.
+Responsable frente al riesgo.
+
+-- 29 of 32 --
+
+Pregunta
+03/04
+Cuando definiste el análisis de costo de tu proyecto no consideraste el costo de las licencias de desarrollo ya que no afectan al proyecto.
+Verdadero.
+Falso.
+
+-- 30 of 32 --
+
+Pregunta
+04/04
+Al desarrollar el abstract de tu proyecto abarcaste los siguientes aspectos:
+Planteamiento del problema.
+Qué problema va a resolver.
+Cuál es el ámbito de su desarrollo (en lenguaje simple).
+Las conclusiones que lograste en el desarrollo del proyecto.
+El recupero de la inversión esperada.
+
+-- 31 of 32 --
+
+American Psychological Association (APA). (2010). Manual de publicaciones de la American Psychological
+Association. 3a edición. México: Manual Moderno.
+Facultad 	de 	Agronomía 	(s. 	f.). 	UTI 	| 	Servicios 	| 	Seguridad 	de 	la 	Información. 	Recuperado 	de
+https://www.agro.uba.ar/uti/servicios/seguridad_informacion.
+Gallo, A. (2020). Aplicación móvil con acceso a información de establecimientos gastronómicos aptos para celíacos
+(tesis de grado). Universidad Siglo 21, Córdoba, Argentina.
+Lavilla, C. (2020). Tablero de comando operativo analítico para la gestión de la producción (tesis de grado).
+Universidad Siglo 21, Córdoba, Argentina.
+León, F. (2018). Captura, análisis y procesamiento de ondas cerebrales (tesis de grado). Universidad Siglo 21,
+Córdoba, Argentina.
+Levine, D., Krehbiel, T. y Berenson, M. (2014). Estadística para administración. 6ta edición. Naucalpan de Juárez:
+Pearson.
+Maniloff, G. (2020). Sistema de Priorización de Ambulancias Basado en Cámaras (tesis de grado). Universidad Siglo
+21, Córdoba, Argentina.
+Mc Connell, S. (1997). Desarrollo y Gestión de Proyectos Informáticos. Madrid: McGraw-Hill.
+Project Management Institute (2017). Guía de los Fundamentos Para la Dirección de Proyectos. Guía del PMBOX. 6ta
+edición. Recuperado de https://www.pmi.org/-/media/pmi/documents/public/pdf/pmbok-standards/pmbok-guide-
+6th-errata.pdf?v=66712958-a626-47f6-b285-b3f24cf29dc4&sc_lang_temp=es-ES.
+Senna, M. (2020). Aplicación móvil para planificación, control y monitoreo de huertas comerciales (Tesis de grado).
+Universidad Siglo 21, Córdoba.
+Lección 4 de 4
+Referencias
+
+-- 32 of 32 --
+

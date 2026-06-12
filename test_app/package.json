@@ -1,0 +1,12 @@
+{
+  "name": "nfr-test-app",
+  "version": "1.0.0",
+  "description": "Aplicacion vulnerable y lenta para probar el Framework NFR",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

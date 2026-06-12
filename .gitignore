@@ -1,0 +1,6 @@
+node_modules/
+nfr_framework.db
+.env
+.DS_Store
+temp/
+reports/

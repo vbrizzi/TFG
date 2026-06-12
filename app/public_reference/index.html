@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFR Framework - Prototipo</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <i class="fas fa-shield-halved"></i>
+            <span>NFR Framework</span>
+        </div>
+        <ul class="sidebar-nav">
+            <li class="active" data-screen="dashboard"><i class="fas fa-chart-line"></i> Dashboard</li>
+            <li data-screen="registro"><i class="fas fa-plus-circle"></i> Registrar App</li>
+            <li data-screen="configuracion"><i class="fas fa-sliders"></i> Configurar Evaluación</li>
+            <li data-screen="ejecucion"><i class="fas fa-play-circle"></i> Ejecutar Evaluación</li>
+            <li data-screen="resultados"><i class="fas fa-chart-bar"></i> Resultados</li>
+            <li data-screen="reporte"><i class="fas fa-file-pdf"></i> Reporte</li>
+        </ul>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><i class="fas fa-user-circle"></i> admin</div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="main">
+        <!-- ===== PANTALLA 1: DASHBOARD ===== -->
+        <section class="screen active" id="dashboard">
+            <div class="screen-header">
+                <h1>Dashboard</h1>
+                <p class="screen-subtitle">Resumen general del estado de calidad</p>
+                <span class="cu-badge">CU-05 — Visualizar resultados</span>
+            </div>
+            <div class="cards-row">
+                <div class="card metric-card">
+                    <div class="metric-icon" style="background:#e8f5e9;color:#2e7d32;"><i class="fas fa-apps-alt fa-layer-group"></i></div>
+                    <div class="metric-info"><span class="metric-value">3</span><span class="metric-label">Aplicaciones</span></div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-icon" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-clipboard-check"></i></div>
+                    <div class="metric-info"><span class="metric-value">12</span><span class="metric-label">Evaluaciones</span></div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-icon" style="background:#fff3e0;color:#e65100;"><i class="fas fa-bug"></i></div>
+                    <div class="metric-info"><span class="metric-value">7</span><span class="metric-label">Hallazgos</span></div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-icon" style="background:#f3e5f5;color:#7b1fa2;"><i class="fas fa-star"></i></div>
+                    <div class="metric-info"><span class="metric-value">78.5</span><span class="metric-label">Score Promedio</span></div>
+                </div>
+            </div>
+            <div class="cards-row">
+                <div class="card" style="flex:2;">
+                    <h3>Evolución de Scores</h3>
+                    <canvas id="chartEvolucion" height="110"></canvas>
+                </div>
+                <div class="card" style="flex:1;">
+                    <h3>Score por Categoría</h3>
+                    <canvas id="chartCategorias" height="110"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Últimas Evaluaciones</h3>
+                <table class="data-table">
+                    <thead><tr><th>Aplicación</th><th>Fecha</th><th>Estado</th><th>Score</th><th>Acciones</th></tr></thead>
+                    <tbody>
+                        <tr><td>API Ventas v2.1</td><td>13/05/2026</td><td><span class="badge badge-success">Finalizada</span></td><td><span class="score-pill score-good">82.3</span></td><td><a href="#" class="btn-link" onclick="showScreen('resultados')">Ver</a></td></tr>
+                        <tr><td>Portal Web</td><td>12/05/2026</td><td><span class="badge badge-success">Finalizada</span></td><td><span class="score-pill score-medium">71.0</span></td><td><a href="#" class="btn-link" onclick="showScreen('resultados')">Ver</a></td></tr>
+                        <tr><td>API Ventas v2.0</td><td>10/05/2026</td><td><span class="badge badge-success">Finalizada</span></td><td><span class="score-pill score-good">78.5</span></td><td><a href="#" class="btn-link" onclick="showScreen('resultados')">Ver</a></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ===== PANTALLA 2: REGISTRO ===== -->
+        <section class="screen" id="registro">
+            <div class="screen-header">
+                <h1>Registrar Aplicación</h1>
+                <p class="screen-subtitle">Registre una nueva aplicación para evaluar</p>
+                <span class="cu-badge">CU-01 — Registrar aplicación</span>
+            </div>
+            <div class="card form-card">
+                <div class="form-group">
+                    <label>Nombre de la aplicación *</label>
+                    <input type="text" placeholder="Ej: API Ventas" value="API Ventas">
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea placeholder="Descripción breve del sistema...">API REST para gestión de ventas desarrollada en Node.js</textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>URL objetivo</label>
+                        <input type="text" placeholder="https://..." value="https://api-ventas.ejemplo.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Repositorio</label>
+                        <input type="text" placeholder="https://github.com/..." value="https://github.com/empresa/api-ventas">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" onclick="showScreen('configuracion')"><i class="fas fa-save"></i> Registrar Aplicación</button>
+                    <button class="btn btn-secondary">Cancelar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== PANTALLA 3: CONFIGURACIÓN ===== -->
+        <section class="screen" id="configuracion">
+            <div class="screen-header">
+                <h1>Configurar Evaluación</h1>
+                <p class="screen-subtitle">Defina los parámetros de la evaluación</p>
+                <span class="cu-badge">CU-02 — Configurar evaluación</span>
+            </div>
+            <div class="card form-card">
+                <div class="form-group">
+                    <label>Aplicación *</label>
+                    <select><option>API Ventas v2.1</option><option>Portal Web</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Categorías de evaluación *</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item checked"><input type="checkbox" checked><i class="fas fa-code"></i> Mantenibilidad<span class="tool-tag">SonarQube</span></label>
+                        <label class="checkbox-item checked"><input type="checkbox" checked><i class="fas fa-shield-alt"></i> Seguridad<span class="tool-tag">OWASP ZAP</span></label>
+                        <label class="checkbox-item checked"><input type="checkbox" checked><i class="fas fa-tachometer-alt"></i> Rendimiento<span class="tool-tag">k6</span></label>
+                    </div>
+                </div>
+                <h3 style="margin:20px 0 10px;">Parámetros de ejecución</h3>
+                <div class="form-row">
+                    <div class="form-group"><label>URL objetivo</label><input type="text" id="targetUrlInput" value="https://example.com"></div>
+                    <div class="form-group"><label>Repositorio</label><input type="text" id="repoUrlInput" value="https://github.com/octocat/Hello-World"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Entorno</label><select><option>Staging</option><option>Producción</option></select></div>
+                    <div class="form-group"><label>Usuarios virtuales (k6)</label><input type="number" value="50"></div>
+                    <div class="form-group"><label>Duración (segundos)</label><input type="number" value="60"></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" onclick="showScreen('ejecucion')"><i class="fas fa-check"></i> Guardar Configuración</button>
+                    <button class="btn btn-secondary">Cancelar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== PANTALLA 4: EJECUCIÓN ===== -->
+        <section class="screen" id="ejecucion">
+            <div class="screen-header">
+                <h1>Ejecutar Evaluación</h1>
+                <p class="screen-subtitle">Ejecute y monitoree la evaluación</p>
+                <span class="cu-badge">CU-03 — Ejecutar evaluación</span>
+            </div>
+            <div class="card">
+                <div class="exec-header">
+                    <div><h3>API Ventas v2.1</h3><p class="text-muted">Evaluación #12 · Mantenibilidad · Seguridad · Rendimiento</p></div>
+                    <button class="btn btn-success btn-lg" id="btnEjecutar" onclick="simularEjecucion()"><i class="fas fa-play"></i> Ejecutar Evaluación</button>
+                </div>
+            </div>
+            <div class="cards-row" id="exec-tools">
+                <div class="card tool-card" id="tool-sonar">
+                    <div class="tool-header"><i class="fas fa-code"></i> SonarQube</div>
+                    <div class="tool-category">Mantenibilidad</div>
+                    <div class="tool-status"><span class="badge badge-pending">Pendiente</span></div>
+                    <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+                </div>
+                <div class="card tool-card" id="tool-zap">
+                    <div class="tool-header"><i class="fas fa-shield-alt"></i> OWASP ZAP</div>
+                    <div class="tool-category">Seguridad</div>
+                    <div class="tool-status"><span class="badge badge-pending">Pendiente</span></div>
+                    <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+                </div>
+                <div class="card tool-card" id="tool-k6">
+                    <div class="tool-header"><i class="fas fa-tachometer-alt"></i> k6</div>
+                    <div class="tool-category">Rendimiento</div>
+                    <div class="tool-status"><span class="badge badge-pending">Pendiente</span></div>
+                    <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+                </div>
+            </div>
+            <div class="card" id="exec-log" style="display:none;">
+                <h3>Log de ejecución</h3>
+                <div class="log-area" id="logArea"></div>
+            </div>
+        </section>
+
+        <!-- ===== PANTALLA 5: RESULTADOS ===== -->
+        <section class="screen" id="resultados">
+            <div class="screen-header">
+                <h1>Resultados de Evaluación</h1>
+                <p class="screen-subtitle">API Ventas v2.1 — Evaluación #12</p>
+                <span class="cu-badge">CU-04 / CU-05 — Procesar y visualizar resultados</span>
+            </div>
+            <div class="score-global-container">
+                <div class="score-global"><div class="score-circle score-good"><span>82.3</span></div><p>Score Global</p></div>
+                <div class="score-categories">
+                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#4caf50;"><span>88</span></div><p>Mantenibilidad</p></div>
+                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#ff9800;"><span>72</span></div><p>Seguridad</p></div>
+                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#2196f3;"><span>87</span></div><p>Rendimiento</p></div>
+                </div>
+            </div>
+            <div class="cards-row">
+                <div class="card" style="flex:1;"><h3>Scores por Categoría</h3><canvas id="chartRadar" height="150"></canvas></div>
+                <div class="card" style="flex:1;"><h3>Comparación con ejecución anterior</h3><canvas id="chartComparacion" height="150"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Hallazgos Detectados</h3>
+                <table class="data-table">
+                    <thead><tr><th>Categoría</th><th>Descripción</th><th>Severidad</th><th>Herramienta</th></tr></thead>
+                    <tbody>
+                        <tr><td>Seguridad</td><td>Cabecera X-Content-Type-Options ausente</td><td><span class="badge badge-warning">Medio</span></td><td>OWASP ZAP</td></tr>
+                        <tr><td>Seguridad</td><td>Cookie sin flag HttpOnly</td><td><span class="badge badge-danger">Alto</span></td><td>OWASP ZAP</td></tr>
+                        <tr><td>Mantenibilidad</td><td>Complejidad ciclomática elevada en OrderService</td><td><span class="badge badge-warning">Medio</span></td><td>SonarQube</td></tr>
+                        <tr><td>Mantenibilidad</td><td>3 code smells detectados</td><td><span class="badge badge-info">Bajo</span></td><td>SonarQube</td></tr>
+                        <tr><td>Rendimiento</td><td>p95 latency 487ms en /api/orders</td><td><span class="badge badge-info">Bajo</span></td><td>k6</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-actions"><button class="btn btn-primary" onclick="showScreen('reporte')"><i class="fas fa-file-pdf"></i> Generar Reporte</button></div>
+        </section>
+
+        <!-- ===== PANTALLA 6: REPORTE ===== -->
+        <section class="screen" id="reporte">
+            <div class="screen-header">
+                <h1>Reporte de Evaluación</h1>
+                <p class="screen-subtitle">Reporte estandarizado con indicadores cuantificables</p>
+                <span class="cu-badge">CU-06 — Generar reporte</span>
+            </div>
+            <div class="form-actions" style="margin-bottom:16px;">
+                <button class="btn btn-primary" onclick="descargarPDF()"><i class="fas fa-download"></i> Exportar PDF</button>
+                <button class="btn btn-secondary"><i class="fas fa-print"></i> Imprimir</button>
+            </div>
+            <div class="card report-card">
+                <div class="report-header">
+                    <h2>Reporte de Evaluación de Calidad No Funcional</h2>
+                    <div class="report-meta">
+                        <p><strong>Aplicación:</strong> API Ventas v2.1</p>
+                        <p><strong>Fecha:</strong> 13/05/2026</p>
+                        <p><strong>Evaluación:</strong> #12</p>
+                        <p><strong>Categorías:</strong> Mantenibilidad, Seguridad, Rendimiento</p>
+                    </div>
+                </div>
+                <hr>
+                <h3>Resumen Ejecutivo</h3>
+                <p>La evaluación de requerimientos no funcionales de la aplicación API Ventas v2.1 arrojó un <strong>score global de 82.3/100</strong>, lo que indica un nivel de calidad satisfactorio con oportunidades de mejora en seguridad.</p>
+                <div class="report-scores">
+                    <div class="report-score-item"><span class="report-cat">Mantenibilidad</span><div class="report-bar"><div class="report-bar-fill" style="width:88%;background:#4caf50;"></div></div><span>88/100</span></div>
+                    <div class="report-score-item"><span class="report-cat">Seguridad</span><div class="report-bar"><div class="report-bar-fill" style="width:72%;background:#ff9800;"></div></div><span>72/100</span></div>
+                    <div class="report-score-item"><span class="report-cat">Rendimiento</span><div class="report-bar"><div class="report-bar-fill" style="width:87%;background:#2196f3;"></div></div><span>87/100</span></div>
+                </div>
+                <hr>
+                <h3>Métricas Detalladas</h3>
+                <table class="data-table">
+                    <thead><tr><th>Métrica</th><th>Valor</th><th>Umbral</th><th>Estado</th></tr></thead>
+                    <tbody>
+                        <tr><td>Complejidad ciclomática</td><td>8.2</td><td>≤ 10</td><td><span class="badge badge-success">Cumple</span></td></tr>
+                        <tr><td>Duplicación de código</td><td>3.1%</td><td>≤ 5%</td><td><span class="badge badge-success">Cumple</span></td></tr>
+                        <tr><td>Vulnerabilidades altas</td><td>1</td><td>0</td><td><span class="badge badge-danger">No cumple</span></td></tr>
+                        <tr><td>Vulnerabilidades medias</td><td>1</td><td>≤ 3</td><td><span class="badge badge-success">Cumple</span></td></tr>
+                        <tr><td>Tiempo de respuesta (p95)</td><td>487ms</td><td>≤ 500ms</td><td><span class="badge badge-success">Cumple</span></td></tr>
+                        <tr><td>Tasa de error</td><td>0.2%</td><td>≤ 1%</td><td><span class="badge badge-success">Cumple</span></td></tr>
+                    </tbody>
+                </table>
+                <hr>
+                <h3>Observaciones</h3>
+                <ul style="padding-left:20px;line-height:1.8;">
+                    <li>Se detectó 1 vulnerabilidad de severidad alta (cookie sin flag HttpOnly) que requiere atención inmediata.</li>
+                    <li>La mantenibilidad del código se encuentra en niveles óptimos con rating A en SonarQube.</li>
+                    <li>El rendimiento cumple con los umbrales definidos bajo carga de 50 usuarios virtuales.</li>
+                    <li>Se recomienda ejecutar una nueva evaluación posterior a la corrección de hallazgos de seguridad.</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

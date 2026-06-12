@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Flujo de Pantallas (Screenshots) - NFR Framework</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #fff; font-family: 'Inter', sans-serif; padding: 40px; }
+        .title { text-align: center; margin-bottom: 6px; font-size: 20px; font-weight: 700; color: #1a1a2e; }
+        .subtitle { text-align: center; margin-bottom: 30px; font-size: 13px; color: #666; }
+
+        .flow-grid {
+            display: grid;
+            grid-template-columns: 1fr 100px 1fr;
+            gap: 16px;
+            max-width: 1200px;
+            margin: 0 auto;
+            align-items: center;
+        }
+
+        /* Screen frame */
+        .screen-frame {
+            background: #fff;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        .frame-topbar {
+            background: #1a1a2e;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .frame-topbar .dot { width: 7px; height: 7px; border-radius: 50%; }
+        .dot-r { background: #ff5f56; }
+        .dot-y { background: #ffbd2e; }
+        .dot-g { background: #27c93f; }
+        .frame-topbar span { color: #aaa; font-size: 10px; margin-left: 8px; }
+
+        .iframe-wrap {
+            width: 100%;
+            height: 320px;
+            overflow: hidden;
+            position: relative;
+        }
+        .iframe-wrap iframe {
+            width: 1400px;
+            height: 900px;
+            border: none;
+            transform: scale(0.37);
+            transform-origin: top left;
+            pointer-events: none;
+        }
+
+        .screen-info {
+            text-align: center;
+            padding: 8px;
+            background: #f8f9fb;
+            border-top: 1px solid #eee;
+        }
+        .screen-info .label { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+        .screen-info .cu { font-size: 11px; color: #6c63ff; font-weight: 600; margin-top: 2px; }
+
+        /* Arrow connectors */
+        .arrow-connector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .arrow-h {
+            font-size: 28px;
+            color: #6c63ff;
+            line-height: 1;
+        }
+        .arrow-label {
+            font-size: 11px;
+            color: #6c63ff;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Vertical arrow between rows */
+        .arrow-row {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            padding: 4px 0;
+        }
+        .arrow-v-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .arrow-v {
+            font-size: 28px;
+            color: #6c63ff;
+            line-height: 1;
+        }
+
+        /* For right-to-left arrows we shift alignment */
+        .arrow-row.right { justify-content: flex-end; padding-right: 280px; }
+        .arrow-row.left { justify-content: flex-start; padding-left: 280px; }
+
+        .source-note {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 11px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">Prototipos de Interfaces del Sistema</div>
+    <div class="subtitle">Encadenamiento lógico del flujo de interacción del usuario con el framework</div>
+
+    <!-- ROW 1: Dashboard → Registro -->
+    <div class="flow-grid">
+        <div class="screen-frame">
+            <div class="frame-topbar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span>Dashboard</span></div>
+            <div class="iframe-wrap"><iframe src="index.html" onload="this.contentWindow.showScreen&&this.contentWindow.showScreen('dashboard')"></iframe></div>
+            <div class="screen-info"><div class="label">Pantalla 1: Dashboard</div><div class="cu">CU-05 — Visualizar resultados</div></div>
+        </div>
+
+        <div class="arrow-connector">
+            <div class="arrow-label">Registrar</div>
+            <div class="arrow-h">→</div>
+        </div>
+
+        <div class="screen-frame">
+            <div class="frame-topbar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span>Registrar Aplicación</span></div>
+            <div class="iframe-wrap"><iframe src="index.html#registro" id="if2"></iframe></div>
+            <div class="screen-info"><div class="label">Pantalla 2: Registro de Aplicación</div><div class="cu">CU-01 — Registrar aplicación</div></div>
+        </div>
+    </div>
+
+    <!-- ARROW DOWN (right side) -->
+    <div style="display:flex;justify-content:flex-end;padding-right:280px;margin:4px 0;">
+        <div class="arrow-v-container"><div class="arrow-label">Configurar</div><div class="arrow-v">↓</div></div>
+    </div>
+
+    <!-- ROW 2: Ejecución ← Configuración -->
+    <div class="flow-grid">
+        <div class="screen-frame">
+            <div class="frame-topbar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span>Ejecutar Evaluación</span></div>
+            <div class="iframe-wrap"><iframe src="index.html#ejecucion" id="if4"></iframe></div>
+            <div class="screen-info"><div class="label">Pantalla 4: Ejecución</div><div class="cu">CU-03 — Ejecutar evaluación</div></div>
+        </div>
+
+        <div class="arrow-connector">
+            <div class="arrow-label">Ejecutar</div>
+            <div class="arrow-h">←</div>
+        </div>
+
+        <div class="screen-frame">
+            <div class="frame-topbar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span>Configurar Evaluación</span></div>
+            <div class="iframe-wrap"><iframe src="index.html#configuracion" id="if3"></iframe></div>
+            <div class="screen-info"><div class="label">Pantalla 3: Configuración</div><div class="cu">CU-02 — Configurar evaluación</div></div>
+        </div>
+    </div>
+
+    <!-- ARROW DOWN (left side) -->
+    <div style="display:flex;justify-content:flex-start;padding-left:280px;margin:4px 0;">
+        <div class="arrow-v-container"><div class="arrow-label">Ver resultados</div><div class="arrow-v">↓</div></div>
+    </div>
+
+    <!-- ROW 3: Resultados → Reporte -->
+    <div class="flow-grid">
+        <div class="screen-frame">
+            <div class="frame-topbar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span>Resultados</span></div>
+            <div class="iframe-wrap"><iframe src="index.html#resultados" id="if5"></iframe></div>
+            <div class="screen-info"><div class="label">Pantalla 5: Resultados</div><div class="cu">CU-04/05 — Procesar y visualizar</div></div>
+        </div>
+
+        <div class="arrow-connector">
+            <div class="arrow-label">Generar reporte</div>
+            <div class="arrow-h">→</div>
+        </div>
+
+        <div class="screen-frame">
+            <div class="frame-topbar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span>Reporte</span></div>
+            <div class="iframe-wrap"><iframe src="index.html#reporte" id="if6"></iframe></div>
+            <div class="screen-info"><div class="label">Pantalla 6: Reporte</div><div class="cu">CU-06 — Generar reporte</div></div>
+        </div>
+    </div>
+
+    <div class="source-note">Fuente: elaboración propia.</div>
+
+    <script>
+        // Navigate each iframe to its correct screen after load
+        function setupIframe(iframe, screen) {
+            iframe.addEventListener('load', () => {
+                try {
+                    iframe.contentWindow.showScreen(screen);
+                } catch(e) {}
+            });
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            setupIframe(document.getElementById('if2'), 'registro');
+            setupIframe(document.getElementById('if3'), 'configuracion');
+            setupIframe(document.getElementById('if4'), 'ejecucion');
+            setupIframe(document.getElementById('if5'), 'resultados');
+            setupIframe(document.getElementById('if6'), 'reporte');
+        });
+    </script>
+</body>
+</html>

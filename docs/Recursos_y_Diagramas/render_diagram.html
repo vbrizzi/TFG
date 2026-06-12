@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Diagrama de Despliegue - Framework NFR</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 30px;
+        }
+        .canvas {
+            position: relative;
+            width: 1300px;
+            height: 900px;
+        }
+
+        /* === NODO 3D (estilo profe - cajas naranja/azul con perspectiva) === */
+        .node {
+            position: absolute;
+            border: 2.5px solid #d4820a;
+            background: #fff8ee;
+        }
+        /* Cara superior (top face) */
+        .node::before {
+            content: '';
+            position: absolute;
+            top: -18px;
+            left: -1px;
+            width: calc(100% + 2px);
+            height: 18px;
+            background: #ffe4b3;
+            border: 2.5px solid #d4820a;
+            border-bottom: none;
+            transform-origin: bottom left;
+            transform: skewX(-40deg) translateX(14px);
+        }
+        /* Cara derecha (right face) */
+        .node::after {
+            content: '';
+            position: absolute;
+            top: -18px;
+            right: -19px;
+            width: 18px;
+            height: calc(100% + 18px);
+            background: #f0cc82;
+            border: 2.5px solid #d4820a;
+            border-left: none;
+            transform-origin: top left;
+            transform: skewY(-50deg) translateY(14px);
+        }
+
+        .node-title {
+            background: #e8a428;
+            color: #333;
+            padding: 7px 14px;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            border-bottom: 2px solid #d4820a;
+        }
+        .node-content {
+            padding: 10px 12px;
+            font-size: 13px;
+            color: #222;
+        }
+
+        /* === COMPONENTE INTERNO === */
+        .component {
+            background: #fff3dc;
+            border: 1.5px solid #d4a34a;
+            padding: 4px 10px;
+            margin: 3px 0;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        /* Sub-nodo (artefacto/contenedor dentro de nodo) */
+        .sub-node {
+            border: 1.5px dashed #c49030;
+            padding: 6px;
+            margin: 5px 0;
+            background: #fffbf2;
+        }
+        .sub-node-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #8a6000;
+            margin-bottom: 4px;
+        }
+
+        .stereotype {
+            font-size: 11px;
+            color: #777;
+            text-align: center;
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        /* Docker containers row */
+        .docker-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .docker-cell {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        /* Table items row */
+        .table-row {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 3px 0;
+        }
+
+        /* === SVG CONEXIONES === */
+        svg.connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        svg.connections line {
+            stroke: #333;
+            stroke-width: 2;
+        }
+        svg.connections text {
+            fill: #333;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        svg.connections .label-bg {
+            fill: white;
+            stroke: none;
+        }
+
+        /* === POSICIONES === */
+        #cliente   { top: 20px;  left: 460px; width: 310px; }
+        #servidor  { top: 270px; left: 30px;  width: 440px; }
+        #docker    { top: 270px; left: 680px; width: 520px; }
+        #database  { top: 680px; left: 340px; width: 380px; }
+    </style>
+</head>
+<body>
+    <div class="canvas">
+
+        <!-- ======= SVG CONEXIONES ======= -->
+        <svg class="connections" viewBox="0 0 1300 900">
+
+            <!-- 1. Cliente ──HTTPS──> Servidor -->
+            <line x1="500" y1="185" x2="300" y2="270"/>
+            <polygon points="296,266 308,266 302,278" fill="#333"/>
+            <rect class="label-bg" x="340" y="208" width="70" height="20" rx="3"/>
+            <text x="375" y="223" text-anchor="middle">HTTPS</text>
+
+            <!-- 2. Servidor ──API REST / CLI──> Docker -->
+            <line x1="470" y1="380" x2="680" y2="380"/>
+            <polygon points="676,374 676,386 688,380" fill="#333"/>
+            <rect class="label-bg" x="512" y="358" width="110" height="20" rx="3"/>
+            <text x="567" y="373" text-anchor="middle">API REST / CLI</text>
+
+            <!-- 3. Docker ──JSON / resultados──> Servidor -->
+            <line x1="680" y1="420" x2="470" y2="420"/>
+            <polygon points="474,414 474,426 462,420" fill="#333"/>
+            <rect class="label-bg" x="522" y="424" width="80" height="20" rx="3"/>
+            <text x="562" y="439" text-anchor="middle">JSON</text>
+
+            <!-- 4. Servidor ──SQL──> Base de datos -->
+            <line x1="300" y1="560" x2="460" y2="680"/>
+            <polygon points="456,676 464,676 460,688" fill="#333"/>
+            <rect class="label-bg" x="340" y="605" width="50" height="20" rx="3"/>
+            <text x="365" y="620" text-anchor="middle">SQL</text>
+
+        </svg>
+
+        <!-- ======= NODO 1: CLIENTE ======= -->
+        <div class="node" id="cliente">
+            <div class="node-title">«device» Cliente / Navegador Web</div>
+            <div class="node-content">
+                <div class="component">Dashboard principal</div>
+                <div class="component">Visualización de resultados</div>
+                <div class="component">Generación de reportes</div>
+                <div class="stereotype">Navegador web (Chrome, Firefox)</div>
+            </div>
+        </div>
+
+        <!-- ======= NODO 2: SERVIDOR ======= -->
+        <div class="node" id="servidor">
+            <div class="node-title">«server» Servidor de Aplicación</div>
+            <div class="node-content">
+                <div class="sub-node">
+                    <div class="sub-node-title">«artifact» Frontend Web</div>
+                    <div class="component">Interfaz de usuario (HTML/CSS/JS)</div>
+                    <div class="component">Chart.js (gráficos)</div>
+                </div>
+                <div class="sub-node">
+                    <div class="sub-node-title">«artifact» Backend Node.js</div>
+                    <div class="component">API REST</div>
+                    <div class="component">Módulo de orquestación</div>
+                    <div class="component">Módulo de scoring / normalización</div>
+                    <div class="component">Módulo de reportes (Puppeteer)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======= NODO 3: DOCKER ======= -->
+        <div class="node" id="docker">
+            <div class="node-title">«Docker Host» Contenedores de Evaluación</div>
+            <div class="node-content">
+                <div class="docker-row">
+                    <div class="docker-cell">
+                        <div class="sub-node">
+                            <div class="sub-node-title">«container»</div>
+                            <div class="component">SonarQube</div>
+                            <div class="stereotype">Mantenibilidad</div>
+                        </div>
+                    </div>
+                    <div class="docker-cell">
+                        <div class="sub-node">
+                            <div class="sub-node-title">«container»</div>
+                            <div class="component">OWASP ZAP</div>
+                            <div class="stereotype">Seguridad</div>
+                        </div>
+                    </div>
+                    <div class="docker-cell">
+                        <div class="sub-node">
+                            <div class="sub-node-title">«container»</div>
+                            <div class="component">k6</div>
+                            <div class="stereotype">Rendimiento</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stereotype" style="margin-top: 6px;">Ejecución aislada y reproducible</div>
+            </div>
+        </div>
+
+        <!-- ======= NODO 4: BASE DE DATOS ======= -->
+        <div class="node" id="database">
+            <div class="node-title">«database» Base de Datos</div>
+            <div class="node-content">
+                <div class="table-row">
+                    <div class="component">Aplicaciones</div>
+                    <div class="component">Evaluaciones</div>
+                    <div class="component">Configuraciones</div>
+                </div>
+                <div class="table-row">
+                    <div class="component">Resultados</div>
+                    <div class="component">Métricas</div>
+                    <div class="component">Scores</div>
+                </div>
+                <div class="table-row">
+                    <div class="component">Reportes</div>
+                    <div class="component">Hallazgos</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
