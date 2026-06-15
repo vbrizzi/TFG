@@ -40,20 +40,20 @@
                 </div>
             <div class="cards-row">
                 <div class="card metric-card">
-                    <div class="metric-icon" style="background:#e8f5e9;color:#2e7d32;"><i class="fas fa-apps-alt fa-layer-group"></i></div>
-                    <div class="metric-info"><span class="metric-value">3</span><span class="metric-label">Aplicaciones</span></div>
+                    <div class="metric-icon" style="background:#e8f5e9;color:#2e7d32;"><i class="fas fa-layer-group"></i></div>
+                    <div class="metric-info"><span class="metric-value" id="dashTotalApps">0</span><span class="metric-label">Aplicaciones</span></div>
                 </div>
                 <div class="card metric-card">
                     <div class="metric-icon" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-clipboard-check"></i></div>
-                    <div class="metric-info"><span class="metric-value">12</span><span class="metric-label">Evaluaciones</span></div>
+                    <div class="metric-info"><span class="metric-value" id="dashTotalEvals">0</span><span class="metric-label">Evaluaciones</span></div>
                 </div>
                 <div class="card metric-card">
                     <div class="metric-icon" style="background:#fff3e0;color:#e65100;"><i class="fas fa-bug"></i></div>
-                    <div class="metric-info"><span class="metric-value">7</span><span class="metric-label">Hallazgos</span></div>
+                    <div class="metric-info"><span class="metric-value" id="dashTotalHallazgos">0</span><span class="metric-label">Hallazgos</span></div>
                 </div>
                 <div class="card metric-card">
                     <div class="metric-icon" style="background:#f3e5f5;color:#7b1fa2;"><i class="fas fa-star"></i></div>
-                    <div class="metric-info"><span class="metric-value">78.5</span><span class="metric-label">Score Promedio</span></div>
+                    <div class="metric-info"><span class="metric-value" id="dashScorePromedio">—</span><span class="metric-label">Score Promedio</span></div>
                 </div>
             </div>
             <div class="cards-row">
@@ -70,10 +70,8 @@
                 <h3>Últimas Evaluaciones</h3>
                 <table class="data-table">
                     <thead><tr><th>Aplicación</th><th>Fecha</th><th>Estado</th><th>Score</th><th>Acciones</th></tr></thead>
-                    <tbody>
-                        <tr><td>API Ventas v2.1</td><td>13/05/2026</td><td><span class="badge badge-success">Finalizada</span></td><td><span class="score-pill score-good">82.3</span></td><td><a href="#" class="btn-link" onclick="showScreen('resultados')">Ver</a></td></tr>
-                        <tr><td>Portal Web</td><td>12/05/2026</td><td><span class="badge badge-success">Finalizada</span></td><td><span class="score-pill score-medium">71.0</span></td><td><a href="#" class="btn-link" onclick="showScreen('resultados')">Ver</a></td></tr>
-                        <tr><td>API Ventas v2.0</td><td>10/05/2026</td><td><span class="badge badge-success">Finalizada</span></td><td><span class="score-pill score-good">78.5</span></td><td><a href="#" class="btn-link" onclick="showScreen('resultados')">Ver</a></td></tr>
+                    <tbody id="dashTableBody">
+                        <tr><td colspan="5" style="text-align:center;color:#999;">Aún no hay evaluaciones registradas.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -133,16 +131,16 @@
                 <div id="configStatus" style="margin-bottom:15px; color:#c62828; font-size:13px; font-weight:bold;"></div>
                 <h3 style="margin:20px 0 10px;">Parámetros de ejecución</h3>
                 <div class="form-row">
-                    <div class="form-group"><label>URL objetivo</label><input type="text" id="targetUrlInput" value="https://example.com"></div>
-                    <div class="form-group"><label>Repositorio</label><input type="text" id="repoUrlInput" value="https://github.com/octocat/Hello-World"></div>
+                    <div class="form-group"><label>URL objetivo</label><input type="text" id="targetUrlInput" placeholder="https://..."></div>
+                    <div class="form-group"><label>Repositorio</label><input type="text" id="repoUrlInput" placeholder="https://github.com/..."></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Entorno</label><select><option>Staging</option><option>Producción</option></select></div>
-                    <div class="form-group"><label>Usuarios virtuales (k6)</label><input type="number" value="50"></div>
-                    <div class="form-group"><label>Duración (segundos)</label><input type="number" value="60"></div>
+                    <div class="form-group"><label>Entorno</label><select id="configEntorno"><option>Staging</option><option>Producción</option></select></div>
+                    <div class="form-group"><label>Usuarios virtuales (k6)</label><input type="number" id="configVUs" value="10"></div>
+                    <div class="form-group"><label>Duración (segundos)</label><input type="number" id="configDuracion" value="10"></div>
                 </div>
                 <div class="form-actions">
-                    <button class="btn btn-primary" onclick="showScreen('ejecucion')"><i class="fas fa-check"></i> Guardar Configuración</button>
+                    <button class="btn btn-primary" onclick="guardarConfiguracion()"><i class="fas fa-check"></i> Guardar Configuración</button>
                     <button class="btn btn-secondary">Cancelar</button>
                 </div>
             </div>
@@ -197,14 +195,15 @@
         <section class="screen" id="resultados">
             <div class="screen-header">
                 <h1>Resultados de Evaluación</h1>
-                <select id="resultadosAppSelect" style="margin-top:10px; padding:5px; border-radius:5px;"><option value="">Seleccione una aplicación...</option></select>
+                <select id="resultadosAppSelect" onchange="cargarResultados()" style="margin-top:10px; padding:5px; border-radius:5px;"><option value="">Seleccione una aplicación...</option></select>
+                <select id="resultadosEvalSelect" onchange="cargarDetalleEvaluacion()" style="margin-top:10px; margin-left:10px; padding:5px; border-radius:5px;"><option value="">Seleccione una evaluación...</option></select>
                 </div>
             <div class="score-global-container">
-                <div class="score-global"><div class="score-circle score-good"><span>82.3</span></div><p>Score Global</p></div>
+                <div class="score-global"><div class="score-circle score-good" id="resScoreCircle"><span id="resScoreGlobal">—</span></div><p>Score Global</p></div>
                 <div class="score-categories">
-                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#4caf50;"><span>88</span></div><p>Mantenibilidad</p></div>
-                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#ff9800;"><span>72</span></div><p>Seguridad</p></div>
-                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#2196f3;"><span>87</span></div><p>Rendimiento</p></div>
+                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#4caf50;"><span id="resScoreMant">—</span></div><p>Mantenibilidad</p></div>
+                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#ff9800;"><span id="resScoreSeg">—</span></div><p>Seguridad</p></div>
+                    <div class="score-cat"><div class="score-circle-sm" style="border-color:#2196f3;"><span id="resScorePerf">—</span></div><p>Rendimiento</p></div>
                 </div>
             </div>
             <div class="cards-row">
@@ -215,12 +214,8 @@
                 <h3>Hallazgos Detectados</h3>
                 <table class="data-table">
                     <thead><tr><th>Categoría</th><th>Descripción</th><th>Severidad</th><th>Herramienta</th></tr></thead>
-                    <tbody>
-                        <tr><td>Seguridad</td><td>Cabecera X-Content-Type-Options ausente</td><td><span class="badge badge-warning">Medio</span></td><td>OWASP ZAP</td></tr>
-                        <tr><td>Seguridad</td><td>Cookie sin flag HttpOnly</td><td><span class="badge badge-danger">Alto</span></td><td>OWASP ZAP</td></tr>
-                        <tr><td>Mantenibilidad</td><td>Complejidad ciclomática elevada en OrderService</td><td><span class="badge badge-warning">Medio</span></td><td>SonarQube</td></tr>
-                        <tr><td>Mantenibilidad</td><td>3 code smells detectados</td><td><span class="badge badge-info">Bajo</span></td><td>SonarQube</td></tr>
-                        <tr><td>Rendimiento</td><td>p95 latency 487ms en /api/orders</td><td><span class="badge badge-info">Bajo</span></td><td>k6</td></tr>
+                    <tbody id="resHallazgosBody">
+                        <tr><td colspan="4" style="text-align:center;color:#999;">Seleccione una evaluación para ver sus hallazgos.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -237,44 +232,32 @@
                 <button class="btn btn-primary" onclick="descargarPDF()"><i class="fas fa-download"></i> Exportar PDF</button>
                 <button class="btn btn-secondary" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
             </div>
-            <div class="card report-card">
+            <div class="card report-card" id="reportCard">
                 <div class="report-header">
                     <h2>Reporte de Evaluación de Calidad No Funcional</h2>
-                    <div class="report-meta">
-                        <p><strong>Aplicación:</strong> API Ventas v2.1</p>
-                        <p><strong>Fecha:</strong> 13/05/2026</p>
-                        <p><strong>Evaluación:</strong> #12</p>
+                    <div class="report-meta" id="reportMeta">
+                        <p><strong>Aplicación:</strong> <span id="repAppName">—</span></p>
+                        <p><strong>Fecha:</strong> <span id="repFecha">—</span></p>
+                        <p><strong>Evaluación:</strong> #<span id="repEvalId">—</span></p>
                         <p><strong>Categorías:</strong> Mantenibilidad, Seguridad, Rendimiento</p>
                     </div>
                 </div>
                 <hr>
                 <h3>Resumen Ejecutivo</h3>
-                <p>La evaluación de requerimientos no funcionales de la aplicación API Ventas v2.1 arrojó un <strong>score global de 82.3/100</strong>, lo que indica un nivel de calidad satisfactorio con oportunidades de mejora en seguridad.</p>
-                <div class="report-scores">
-                    <div class="report-score-item"><span class="report-cat">Mantenibilidad</span><div class="report-bar"><div class="report-bar-fill" style="width:88%;background:#4caf50;"></div></div><span>88/100</span></div>
-                    <div class="report-score-item"><span class="report-cat">Seguridad</span><div class="report-bar"><div class="report-bar-fill" style="width:72%;background:#ff9800;"></div></div><span>72/100</span></div>
-                    <div class="report-score-item"><span class="report-cat">Rendimiento</span><div class="report-bar"><div class="report-bar-fill" style="width:87%;background:#2196f3;"></div></div><span>87/100</span></div>
-                </div>
+                <p id="repResumen">Seleccione y ejecute una evaluación para generar el reporte.</p>
+                <div class="report-scores" id="repScores"></div>
                 <hr>
                 <h3>Métricas Detalladas</h3>
                 <table class="data-table">
                     <thead><tr><th>Métrica</th><th>Valor</th><th>Umbral</th><th>Estado</th></tr></thead>
-                    <tbody>
-                        <tr><td>Complejidad ciclomática</td><td>8.2</td><td>≤ 10</td><td><span class="badge badge-success">Cumple</span></td></tr>
-                        <tr><td>Duplicación de código</td><td>3.1%</td><td>≤ 5%</td><td><span class="badge badge-success">Cumple</span></td></tr>
-                        <tr><td>Vulnerabilidades altas</td><td>1</td><td>0</td><td><span class="badge badge-danger">No cumple</span></td></tr>
-                        <tr><td>Vulnerabilidades medias</td><td>1</td><td>≤ 3</td><td><span class="badge badge-success">Cumple</span></td></tr>
-                        <tr><td>Tiempo de respuesta (p95)</td><td>487ms</td><td>≤ 500ms</td><td><span class="badge badge-success">Cumple</span></td></tr>
-                        <tr><td>Tasa de error</td><td>0.2%</td><td>≤ 1%</td><td><span class="badge badge-success">Cumple</span></td></tr>
+                    <tbody id="repMetricasBody">
+                        <tr><td colspan="4" style="text-align:center;color:#999;">Sin datos.</td></tr>
                     </tbody>
                 </table>
                 <hr>
                 <h3>Observaciones</h3>
-                <ul style="padding-left:20px;line-height:1.8;">
-                    <li>Se detectó 1 vulnerabilidad de severidad alta (cookie sin flag HttpOnly) que requiere atención inmediata.</li>
-                    <li>La mantenibilidad del código se encuentra en niveles óptimos con rating A en SonarQube.</li>
-                    <li>El rendimiento cumple con los umbrales definidos bajo carga de 50 usuarios virtuales.</li>
-                    <li>Se recomienda ejecutar una nueva evaluación posterior a la corrección de hallazgos de seguridad.</li>
+                <ul id="repObservaciones" style="padding-left:20px;line-height:1.8;">
+                    <li>Ejecute una evaluación para ver las observaciones.</li>
                 </ul>
             </div>
         </section>
