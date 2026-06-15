@@ -91,6 +91,20 @@ body { font-family: 'Inter', sans-serif; display: flex; min-height: 100vh; backg
 .checkbox-item.checked i { color: #6c63ff; }
 .tool-tag { margin-left: auto; font-size: 11px; background: #6c63ff; color: #fff; padding: 4px 8px; border-radius: 10px; font-weight: 600; display: flex; align-items: center; }
 
+/* ===== CATEGORY CARDS (Grid Moderno) ===== */
+.category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; }
+.category-card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #fff; border: 2px solid #e0e4ff; border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 8px rgba(108,99,255,0.05); }
+.category-card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(108,99,255,0.15); border-color: #b3adff; }
+.category-card:has(input:checked) { background: #f8f7ff; border-color: #6c63ff; box-shadow: 0 4px 12px rgba(108,99,255,0.2); }
+.category-card input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+.category-card i { font-size: 32px; color: #a0a0b8; margin-bottom: 12px; transition: color 0.3s; }
+.category-card:has(input:checked) i { color: #6c63ff; }
+.category-card .cat-title { font-size: 14px; font-weight: 700; color: #444; margin-bottom: 8px; }
+.category-card .cat-tool { font-size: 11px; background: #f0f0f5; color: #666; padding: 4px 10px; border-radius: 12px; font-weight: 600; transition: all 0.3s; }
+.category-card:has(input:checked) .cat-tool { background: #6c63ff; color: #fff; }
+.category-card::after { content: '\f00c'; font-family: 'Font Awesome 5 Free'; font-weight: 900; position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; background: #6c63ff; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; opacity: 0; transform: scale(0.5); transition: all 0.3s; }
+.category-card:has(input:checked)::after { opacity: 1; transform: scale(1); }
+
 /* ===== EXECUTION ===== */
 .exec-header { display: flex; justify-content: space-between; align-items: center; }
 .text-muted { color: #888; font-size: 13px; margin-top: 4px; }

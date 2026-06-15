@@ -215,7 +215,7 @@ async function guardarConfiguracion() {
     const appId = document.getElementById('configAppSelect').value;
     if (!appId) { alert('Seleccione una aplicación.'); return; }
 
-    const checkboxes = document.querySelectorAll('#configuracion .checkbox-group input[type="checkbox"]');
+    const checkboxes = document.querySelectorAll('#configuracion .category-grid input[type="checkbox"]');
     const categorias = [];
     const herramientas = [];
     checkboxes.forEach((cb, i) => {

@@ -122,10 +122,25 @@
                 </div>
                 <div class="form-group">
                     <label>Categorías de evaluación *</label>
-                    <div class="checkbox-group">
-                        <label class="checkbox-item checked"><input type="checkbox" checked><i class="fas fa-code"></i> Mantenibilidad<span class="tool-tag">SonarQube</span></label>
-                        <label class="checkbox-item checked"><input type="checkbox" checked><i class="fas fa-shield-alt"></i> Seguridad<span class="tool-tag">OWASP ZAP</span></label>
-                        <label class="checkbox-item checked"><input type="checkbox" checked><i class="fas fa-tachometer-alt"></i> Rendimiento<span class="tool-tag">k6</span></label>
+                    <div class="category-grid">
+                        <label class="category-card">
+                            <input type="checkbox" checked>
+                            <i class="fas fa-code"></i>
+                            <span class="cat-title">Mantenibilidad</span>
+                            <span class="cat-tool">SonarQube</span>
+                        </label>
+                        <label class="category-card">
+                            <input type="checkbox" checked>
+                            <i class="fas fa-shield-alt"></i>
+                            <span class="cat-title">Seguridad</span>
+                            <span class="cat-tool">OWASP ZAP</span>
+                        </label>
+                        <label class="category-card">
+                            <input type="checkbox" checked>
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span class="cat-title">Rendimiento</span>
+                            <span class="cat-tool">k6</span>
+                        </label>
                     </div>
                 </div>
                 <div id="configStatus" style="margin-bottom:15px; color:#c62828; font-size:13px; font-weight:bold;"></div>
