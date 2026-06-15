@@ -74,7 +74,7 @@ body { font-family: 'Inter', sans-serif; display: flex; min-height: 100vh; backg
 /* ===== FORMS ===== */
 .form-card { max-width: 700px; }
 .form-group { margin-bottom: 16px; }
-.form-group label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+.form-group > label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border 0.2s; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #6c63ff; outline: none; }
 .form-group textarea { min-height: 80px; resize: vertical; }
