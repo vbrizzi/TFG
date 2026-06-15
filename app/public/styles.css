@@ -84,9 +84,11 @@ body { font-family: 'Inter', sans-serif; display: flex; min-height: 100vh; backg
 
 /* ===== CHECKBOXES ===== */
 .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
-.checkbox-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #f8f9ff; border: 1.5px solid #e0e4ff; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.checkbox-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8f9ff; border: 1.5px solid #e0e4ff; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
 .checkbox-item.checked { background: #eee8ff; border-color: #6c63ff; }
-.checkbox-item input { width: 18px; height: 18px; accent-color: #6c63ff; }
+.checkbox-item input { width: 18px; height: 18px; margin: 0; accent-color: #6c63ff; flex-shrink: 0; cursor: pointer; }
+.checkbox-item i { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; color: #555; }
+.checkbox-item.checked i { color: #6c63ff; }
 .tool-tag { margin-left: auto; font-size: 11px; background: #6c63ff; color: #fff; padding: 2px 8px; border-radius: 10px; }
 
 /* ===== EXECUTION ===== */
