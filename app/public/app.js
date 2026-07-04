@@ -1,3 +1,84 @@
+// ===== AUTENTICACIÓN =====
+async function doLogin() {
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
+    const errorDiv = document.getElementById('loginError');
+    const btn = document.getElementById('btnLogin');
+
+    if (!username || !password) {
+        errorDiv.textContent = 'Ingresá usuario y contraseña.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+    errorDiv.style.display = 'none';
+
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            localStorage.setItem('nfr_user', JSON.stringify(data.user));
+            document.getElementById('sidebarUsername').textContent = data.user.nombre || data.user.username;
+            document.getElementById('loginScreen').classList.add('hidden');
+            cargarAplicaciones();
+            cargarDashboard();
+        } else {
+            errorDiv.textContent = data.error || 'Credenciales incorrectas.';
+            errorDiv.style.display = 'block';
+        }
+    } catch (e) {
+        errorDiv.textContent = 'Error de conexión con el servidor.';
+        errorDiv.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Ingresar';
+    }
+}
+
+function doLogout() {
+    localStorage.removeItem('nfr_user');
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function checkAuth() {
+    const user = localStorage.getItem('nfr_user');
+    if (user) {
+        try {
+            const parsed = JSON.parse(user);
+            document.getElementById('sidebarUsername').textContent = parsed.nombre || parsed.username;
+            document.getElementById('loginScreen').classList.add('hidden');
+            return true;
+        } catch(e) {
+            localStorage.removeItem('nfr_user');
+        }
+    }
+    return false;
+}
+
+// Permitir login con Enter
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loginPass').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doLogin();
+    });
+    document.getElementById('loginUser').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('loginPass').focus();
+    });
+    // Verificar si ya hay sesión activa
+    if (checkAuth()) {
+        cargarAplicaciones();
+        cargarDashboard();
+    }
+});
+
 // ===== NAVEGACIÓN ENTRE PANTALLAS =====
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -255,47 +336,80 @@ async function guardarConfiguracion() {
 }
 
 // ===== EJECUCIÓN (RF05, RF10) =====
+
+function setToolCardState(toolKey, state) {
+    const card = document.getElementById(`tool-${toolKey}`);
+    if (!card) return;
+    const statusEl = card.querySelector('.tool-status span');
+    const progressFill = card.querySelector('.progress-fill');
+    const states = {
+        pending:  { cls: 'badge-pending',  text: 'Pendiente',   width: '0%',   color: '#ccc' },
+        running:  { cls: 'badge-running',  text: 'En Proceso…', width: '60%',  color: '#2196f3' },
+        done:     { cls: 'badge-success',  text: 'Finalizado',  width: '100%', color: '#4caf50' },
+        error:    { cls: 'badge-danger',   text: 'Error',       width: '100%', color: '#f44336' },
+        skipped:  { cls: 'badge-pending',  text: 'Omitido',     width: '0%',   color: '#ccc' },
+    };
+    const s = states[state] || states.pending;
+    statusEl.className = `badge ${s.cls}`;
+    statusEl.textContent = s.text;
+    progressFill.style.width = s.width;
+    progressFill.style.background = s.color;
+    // Animación pulsante en proceso
+    card.classList.toggle('tool-running', state === 'running');
+}
+
 async function simularEjecucion() {
     const appId = document.getElementById('execAppSelect').value;
     if (!appId) { alert('Por favor seleccione una aplicación para evaluar.'); return; }
     const app = aplicaciones.find(a => a.id == appId);
 
     const runSonar = document.getElementById('runSonar').checked;
-    const runZap = document.getElementById('runZap').checked;
-    const runK6 = document.getElementById('runK6').checked;
+    const runZap   = document.getElementById('runZap').checked;
+    const runK6    = document.getElementById('runK6').checked;
 
     if (!runSonar && !runZap && !runK6) { alert('Debe seleccionar al menos una herramienta.'); return; }
 
     const btn = document.getElementById('btnEjecutar');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando... (Puede tardar)';
-    btn.style.background = '#888';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando...';
+    btn.style.background = '#555';
 
-    // Actualizar tarjetas de estado
-    const tools = { sonar: runSonar, zap: runZap, k6: runK6 };
-    Object.keys(tools).forEach(key => {
-        const card = document.getElementById(`tool-${key}`);
-        const statusEl = card.querySelector('.tool-status span');
-        const progressFill = card.querySelector('.progress-fill');
-        if (tools[key]) {
-            statusEl.className = 'badge badge-warning';
-            statusEl.textContent = 'En Proceso';
-            progressFill.style.width = '50%';
-            progressFill.style.background = '#ff9800';
-        } else {
-            statusEl.className = 'badge badge-pending';
-            statusEl.textContent = 'Omitido';
-            progressFill.style.width = '0%';
-        }
-    });
+    // Estado inicial de tarjetas
+    setToolCardState('sonar', runSonar ? 'pending' : 'skipped');
+    setToolCardState('zap',   runZap   ? 'pending' : 'skipped');
+    setToolCardState('k6',    runK6    ? 'pending' : 'skipped');
 
     document.getElementById('exec-log').style.display = 'block';
     const log = document.getElementById('logArea');
-    log.innerHTML = '[INFO] Iniciando evaluación real...\n';
-    log.innerHTML += `[INFO] Aplicación: ${app.nombre}\n`;
+    log.innerHTML = `[INFO] Iniciando evaluación para: ${app.nombre}\n`;
+    log.innerHTML += `[INFO] Herramientas: ${[runSonar&&'SonarQube', runZap&&'ZAP', runK6&&'k6'].filter(Boolean).join(', ')}\n`;
+
+    let evalId = null;
+    let pollInterval = null;
+
+    // Función de polling para actualizar tarjetas en tiempo real
+    const startPolling = () => {
+        pollInterval = setInterval(async () => {
+            if (!evalId) return;
+            try {
+                const r = await fetch(`/api/evaluar/progreso/${evalId}`);
+                const data = await r.json();
+                const p = data.progreso || {};
+
+                if (runSonar) setToolCardState('sonar', p.sonar || 'pending');
+                if (runZap)   setToolCardState('zap',   p.zap   || 'pending');
+                if (runK6)    setToolCardState('k6',    p.k6    || 'pending');
+
+                if (data.estado === 'FINALIZADA' || data.estado === 'ERROR') {
+                    clearInterval(pollInterval);
+                }
+            } catch(e) { /* servidor ocupado, reintenta */ }
+        }, 1500);
+    };
 
     try {
-        const evalRes = await fetch('/api/evaluar', {
+        // Iniciar evaluación en background (no await todavía)
+        const evalPromise = fetch('/api/evaluar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -307,55 +421,56 @@ async function simularEjecucion() {
             })
         });
 
-        const evalData = await evalRes.json();
+        // Pequeña espera para que el backend cree el registro y tengamos el evalId
+        await new Promise(r => setTimeout(r, 800));
 
-        if (evalData.error) {
-            throw new Error(evalData.error);
+        // Obtener el evalId de la última evaluación creada para esta app
+        const histRes = await fetch(`/api/evaluaciones/${app.id}`);
+        const histData = await histRes.json();
+        if (histData && histData.length > 0) {
+            evalId = histData[0].id;
+            log.innerHTML += `[INFO] Evaluación #${evalId} iniciada en servidor.\n`;
+            startPolling();
         }
 
-        log.innerHTML += `[INFO] Evaluación #${evalData.id_evaluacion} procesada.\n`;
-        log.innerHTML += `[SCORE] ✓ Calidad: ${evalData.scores.quality}\n`;
-        log.innerHTML += `[SCORE] ✓ Seguridad: ${evalData.scores.security}\n`;
-        log.innerHTML += `[SCORE] ✓ Rendimiento: ${evalData.scores.performance}\n`;
-        log.innerHTML += `[SCORE] ✓ Score global: ${evalData.scores.global}/100\n`;
-        log.innerHTML += `[INFO] Hallazgos detectados: ${evalData.hallazgos_count}\n`;
-        log.innerHTML += `[INFO] Métricas registradas: ${evalData.metricas_count}\n`;
+        // Ahora sí esperamos el resultado final
+        const evalRes = await evalPromise;
+        const evalData = await evalRes.json();
+        clearInterval(pollInterval);
+
+        if (evalData.error) throw new Error(evalData.error);
+
+        // Estado final de las tarjetas
+        if (runSonar) setToolCardState('sonar', 'done');
+        if (runZap)   setToolCardState('zap',   'done');
+        if (runK6)    setToolCardState('k6',    'done');
+
+        log.innerHTML += `[✓] Evaluación #${evalData.id_evaluacion} finalizada.\n`;
+        log.innerHTML += `[SCORE] Mantenibilidad: ${evalData.scores.quality} | Seguridad: ${evalData.scores.security} | Rendimiento: ${evalData.scores.performance}\n`;
+        log.innerHTML += `[SCORE] Score Global: ${evalData.scores.global}/100\n`;
+        log.innerHTML += `[INFO] Hallazgos: ${evalData.hallazgos_count} | Métricas: ${evalData.metricas_count}\n`;
 
         window.lastEvalId = evalData.id_evaluacion;
-
-        // Actualizar tarjetas a Finalizado
-        Object.keys(tools).forEach(key => {
-            if (tools[key]) {
-                const card = document.getElementById(`tool-${key}`);
-                const statusEl = card.querySelector('.tool-status span');
-                const progressFill = card.querySelector('.progress-fill');
-                statusEl.className = 'badge badge-success';
-                statusEl.textContent = 'Finalizado';
-                progressFill.style.width = '100%';
-                progressFill.style.background = '#4caf50';
-            }
-        });
-
-        btn.innerHTML = '<i class="fas fa-check"></i> Evaluación Finalizada';
+        btn.innerHTML = '<i class="fas fa-check"></i> ¡Evaluación Completada!';
         btn.style.background = '#4caf50';
 
     } catch (e) {
+        clearInterval(pollInterval);
         log.innerHTML += `[ERROR] ${e.message}\n`;
-
-        Object.keys(tools).forEach(key => {
-            if (tools[key]) {
-                const card = document.getElementById(`tool-${key}`);
-                const statusEl = card.querySelector('.tool-status span');
-                statusEl.className = 'badge badge-danger';
-                statusEl.textContent = 'Error';
-            }
-        });
-
-        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+        if (runSonar) setToolCardState('sonar', 'error');
+        if (runZap)   setToolCardState('zap',   'error');
+        if (runK6)    setToolCardState('k6',    'error');
+        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error en evaluación';
         btn.style.background = '#f44336';
     }
-    btn.disabled = false;
+
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play"></i> Ejecutar Evaluación';
+        btn.style.background = '';
+    }, 4000);
 }
+
 
 // ===== RESULTADOS DINÁMICOS (RF11, RF13) =====
 async function cargarResultados() {

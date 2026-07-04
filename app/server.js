@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 const db = require('./database');
 
 const sonarService = require('./services/sonarService');
@@ -18,6 +19,28 @@ app.use(express.static('public'));
 // ========== HEALTH ==========
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'NFR Framework Orchestrator is running' });
+});
+
+// ========== AUTENTICACIÓN ==========
+
+// Login
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Usuario y contraseña son requeridos.' });
+    }
+    db.get(`SELECT * FROM Usuario WHERE username = ?`, [username], async (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+
+        const match = await bcrypt.compare(password, user.password_hash);
+        if (!match) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+
+        res.json({
+            success: true,
+            user: { id: user.id, username: user.username, nombre: user.nombre_completo, rol: user.rol }
+        });
+    });
 });
 
 // ========== APLICACIONES (RF01) ==========
@@ -122,26 +145,41 @@ app.post('/api/evaluar', async (req, res) => {
         let zapRes = { status: 'skipped', data: {} };
         let k6Res = { status: 'skipped', data: {} };
 
+        // Helper para guardar progreso en BD
+        const setProgreso = (herramienta, estado) => {
+            db.run(`UPDATE Evaluacion SET progreso = json_patch(COALESCE(progreso,'{}'), ?) WHERE id = ?`,
+                [JSON.stringify({ [herramienta]: estado }), evalId]);
+        };
+
         // 3. Ejecutar herramientas seleccionadas
         if (runSonar) {
+            setProgreso('sonar', 'running');
             try {
                 sonarRes = await sonarService.analyze(repositoryUrl, projectName);
+                setProgreso('sonar', 'done');
             } catch (e) {
                 sonarRes = { status: 'error', data: {}, error: e.message };
+                setProgreso('sonar', 'error');
             }
         }
         if (runZap) {
+            setProgreso('zap', 'running');
             try {
                 zapRes = await zapService.scan(targetUrl, projectName);
+                setProgreso('zap', 'done');
             } catch (e) {
                 zapRes = { status: 'error', data: {}, error: e.message };
+                setProgreso('zap', 'error');
             }
         }
         if (runK6) {
+            setProgreso('k6', 'running');
             try {
                 k6Res = await k6Service.runTest(targetUrl, projectName);
+                setProgreso('k6', 'done');
             } catch (e) {
                 k6Res = { status: 'error', data: {}, error: e.message };
+                setProgreso('k6', 'error');
             }
         }
 
@@ -220,6 +258,21 @@ app.post('/api/evaluar', async (req, res) => {
         console.error(`[Orchestrator] Error en evaluación #${evalId}:`, err);
         res.status(500).json({ error: err.message, id_evaluacion: evalId, estado: 'ERROR' });
     }
+});
+
+// Consultar progreso de una evaluación en curso
+app.get('/api/evaluar/progreso/:id', (req, res) => {
+    db.get(
+        `SELECT id, estado, progreso FROM Evaluacion WHERE id = ?`,
+        [req.params.id],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: 'Evaluación no encontrada' });
+            let progreso = {};
+            try { progreso = JSON.parse(row.progreso || '{}'); } catch(e) {}
+            res.json({ id: row.id, estado: row.estado, progreso });
+        }
+    );
 });
 
 // ========== HISTORIAL Y CONSULTAS (RF11, RF13) ==========

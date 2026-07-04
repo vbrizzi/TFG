@@ -4,3 +4,16 @@ nfr_framework.db
 .DS_Store
 temp/
 reports/
+
+# Excluir documentos de trabajo interno, planes de IA y scripts auxiliares
+implementation_plan.md
+task.md
+walkthrough.md
+tesis_clean.md
+tesis_mejorada.md
+extract_tesis.js
+*.txt
+.gemini/
+.agents/
+docs/tesis_raw.txt
+docs/Entregables_y_Tesis/

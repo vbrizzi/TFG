@@ -10,6 +10,31 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+    <!-- ===== PANTALLA DE LOGIN ===== -->
+    <div id="loginScreen" class="login-overlay">
+        <div class="login-card">
+            <div class="login-logo">
+                <i class="fas fa-shield-halved"></i>
+                <h1>NFR Framework</h1>
+                <p>Modelo Automatizado de Evaluación Continua</p>
+            </div>
+            <div class="login-form">
+                <div class="login-input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="loginUser" placeholder="Usuario" value="admin" autocomplete="username">
+                </div>
+                <div class="login-input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password">
+                </div>
+                <div id="loginError" class="login-error" style="display:none;">Usuario o contraseña incorrectos.</div>
+                <button class="btn-login" onclick="doLogin()" id="btnLogin">
+                    <i class="fas fa-sign-in-alt"></i> Ingresar
+                </button>
+            </div>
+            <div class="login-footer">Ingrese con sus credenciales de acceso</div>
+        </div>
+    </div>
     <!-- SIDEBAR -->
     <nav class="sidebar">
         <div class="sidebar-logo">
@@ -25,7 +50,10 @@
             <li data-screen="reporte"><i class="fas fa-file-pdf"></i> Reporte</li>
         </ul>
         <div class="sidebar-footer">
-            <div class="sidebar-user"><i class="fas fa-user-circle"></i> admin</div>
+            <div class="sidebar-user"><i class="fas fa-user-circle"></i> <span id="sidebarUsername">admin</span></div>
+            <button class="btn-logout" onclick="doLogout()" title="Cerrar sesión">
+                <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+            </button>
         </div>
     </nav>
 

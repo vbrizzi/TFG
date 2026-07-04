@@ -58,9 +58,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 id_configuracion INTEGER,
                 fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
                 estado TEXT NOT NULL DEFAULT 'PENDIENTE',
+                progreso TEXT DEFAULT '{}',
                 FOREIGN KEY (id_aplicacion) REFERENCES Aplicacion(id),
                 FOREIGN KEY (id_configuracion) REFERENCES ConfiguracionEvaluacion(id)
             )`);
+            // Migración: agregar columna progreso si no existe
+            db.run(`ALTER TABLE Evaluacion ADD COLUMN progreso TEXT DEFAULT '{}'`, () => {});
+
 
             // ========== RESULTADO ==========
             // Un registro por cada herramienta ejecutada dentro de una evaluación.
@@ -126,6 +130,27 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 ruta_archivo TEXT,
                 FOREIGN KEY (id_evaluacion) REFERENCES Evaluacion(id)
             )`);
+
+            // ========== USUARIO ==========
+            // Tabla de usuarios del sistema para autenticación.
+            db.run(`CREATE TABLE IF NOT EXISTS Usuario (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                nombre_completo TEXT,
+                rol TEXT NOT NULL DEFAULT 'admin',
+                fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => {
+                if (!err) {
+                    // Seed: usuario admin por defecto (password: nfr2026)
+                    const defaultHash = '$2b$10$MixJTd6nlr8ygljDcDDju.XDFV23rfivdzwGRNidKn2uZZLGC/H4W';
+                    db.run(
+                        `INSERT OR IGNORE INTO Usuario (username, password_hash, nombre_completo, rol) VALUES (?, ?, ?, ?)`,
+                        ['admin', defaultHash, 'Administrador', 'admin'],
+                        () => {}
+                    );
+                }
+            });
 
             // ========== SEED: Herramientas ==========
             db.run(`INSERT OR IGNORE INTO Herramienta (id, nombre, tipo, version, configuracion_default) VALUES
