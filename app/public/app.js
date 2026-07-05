@@ -97,8 +97,9 @@ document.querySelectorAll('.sidebar-nav li').forEach(item => {
 
 // ===== ESTADO GLOBAL =====
 let aplicaciones = [];
-let chartEvolucion = null, chartCategorias = null;
+let chartEvolucion = null;
 let chartRadar = null, chartComparacion = null;
+let editingAppId = null;
 
 // ===== APLICACIONES =====
 async function cargarAplicaciones() {
@@ -106,8 +107,99 @@ async function cargarAplicaciones() {
         const res = await fetch('/api/aplicaciones');
         aplicaciones = await res.json();
         actualizarDropdowns();
+        renderAppsRegistradas();
     } catch (e) {
         console.error('Error cargando aplicaciones:', e);
+    }
+}
+
+function renderAppsRegistradas() {
+    const tbody = document.getElementById('appsRegistradasBody');
+    if (!tbody) return;
+    if (!aplicaciones || aplicaciones.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">No hay aplicaciones registradas aún.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = aplicaciones.map(app => {
+        const repo = app.repositorio
+            ? `<a href="${app.repositorio}" target="_blank" style="color:#6c63ff;font-size:12px;">${app.repositorio.replace('https://github.com/','')}</a>`
+            : '<span style="color:#666;">—</span>';
+        const url = app.url_objetivo
+            ? `<a href="${app.url_objetivo}" target="_blank" style="color:#6c63ff;font-size:12px;">${app.url_objetivo}</a>`
+            : '<span style="color:#666;">—</span>';
+        return `<tr>
+            <td style="color:#888;">${app.id}</td>
+            <td><strong>${app.nombre}</strong></td>
+            <td style="font-size:12px;color:#aaa;">${app.descripcion || '—'}</td>
+            <td>${url}</td>
+            <td>${repo}</td>
+            <td>
+                <button class="btn-link" style="color:#1976d2; margin-right: 8px;" onclick="editarAplicacion(${app.id})"><i class="fas fa-edit"></i> Editar</button>
+                <button class="btn-link" style="color:#f44336;" onclick="eliminarAplicacion(${app.id}, '${app.nombre.replace(/'/g, "&apos;")}')"><i class="fas fa-trash"></i> Eliminar</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function editarAplicacion(id) {
+    const app = aplicaciones.find(a => a.id === id);
+    if (!app) return;
+    document.getElementById('regAppName').value = app.nombre;
+    document.getElementById('regAppDesc').value = app.descripcion || '';
+    document.getElementById('regAppUrl').value = app.url_objetivo || '';
+    document.getElementById('regAppRepo').value = app.repositorio || '';
+    editingAppId = id;
+    const btn = document.getElementById('appPrimaryBtn');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-save"></i> Actualizar Aplicación';
+        btn.onclick = actualizarAplicacion;
+    }
+}
+
+async function actualizarAplicacion() {
+    if (!editingAppId) return;
+    const payload = {
+        nombre: document.getElementById('regAppName').value,
+        descripcion: document.getElementById('regAppDesc').value,
+        url_objetivo: document.getElementById('regAppUrl').value,
+        repositorio: document.getElementById('regAppRepo').value
+    };
+    try {
+        const res = await fetch(`/api/aplicaciones/${editingAppId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('Error: ' + data.error); return; }
+        
+        // Reset form
+        document.getElementById('regAppName').value = '';
+        document.getElementById('regAppDesc').value = '';
+        document.getElementById('regAppUrl').value = '';
+        document.getElementById('regAppRepo').value = '';
+        editingAppId = null;
+        
+        const btn = document.getElementById('appPrimaryBtn');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-save"></i> Registrar Aplicación';
+            btn.onclick = registrarAplicacion;
+        }
+        await cargarAplicaciones();
+    } catch (e) {
+        alert('Error al actualizar: ' + e.message);
+    }
+}
+
+async function eliminarAplicacion(id, nombre) {
+    if (!confirm(`¿Eliminás la aplicación "${nombre}"? Esto no borra las evaluaciones asociadas.`)) return;
+    try {
+        const res = await fetch(`/api/aplicaciones/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) { alert('Error: ' + data.error); return; }
+        await cargarAplicaciones();
+    } catch (e) {
+        alert('Error al eliminar: ' + e.message);
     }
 }
 
@@ -150,7 +242,7 @@ async function registrarAplicacion() {
         const configSel = document.getElementById('configAppSelect');
         if (configSel) configSel.value = data.id;
         showScreen('configuracion');
-        actualizarEstadoConfiguracion();
+        actualizarEstadoConfiguracion(true);
     } catch (e) {
         alert('Error al registrar: ' + e.message);
     }
@@ -201,29 +293,48 @@ async function cargarDashboard() {
 }
 
 async function cargarGraficosDashboard(appId) {
-    // Necesitamos evaluaciones con scores para los gráficos
-    let evals = [];
-    if (appId) {
-        const res = await fetch(`/api/evaluaciones/${appId}`);
-        evals = await res.json();
-    } else if (aplicaciones.length > 0) {
-        // Traer las de la primera app que tenga datos
-        for (const app of aplicaciones) {
-            const res = await fetch(`/api/evaluaciones/${app.id}`);
-            const data = await res.json();
-            if (data.length > 0) { evals = data; break; }
+    const containerEvol = document.getElementById('chartEvolucion').parentNode;
+    const containerCats = document.getElementById('chartCategorias');
+    
+    // Si no hay app seleccionada (vista global)
+    if (!appId) {
+        if (chartEvolucion) { chartEvolucion.destroy(); chartEvolucion = null; }
+        
+        // Placeholder Evolución
+        const canvasEvol = document.getElementById('chartEvolucion');
+        if (canvasEvol) canvasEvol.style.display = 'none';
+        let emptyStateEvol = document.getElementById('emptyStateEvol');
+        if (!emptyStateEvol) {
+            emptyStateEvol = document.createElement('div');
+            emptyStateEvol.id = 'emptyStateEvol';
+            emptyStateEvol.className = 'empty-state-container';
+            emptyStateEvol.innerHTML = '<i class="fas fa-hand-pointer" style="font-size:30px;color:#ccc;margin-bottom:10px;"></i><br><span style="color:#888;">Seleccioná una aplicación para ver su evolución</span>';
+            emptyStateEvol.style.textAlign = 'center';
+            emptyStateEvol.style.padding = '40px 20px';
+            containerEvol.appendChild(emptyStateEvol);
+        } else {
+            emptyStateEvol.style.display = 'block';
         }
+        
+        // Placeholder Categorías
+        containerCats.innerHTML = '<div style="text-align:center;padding:40px 20px;"><i class="fas fa-hand-pointer" style="font-size:30px;color:#ccc;margin-bottom:10px;"></i><br><span style="color:#888;">Seleccioná una aplicación para ver el detalle</span></div>';
+        return;
     }
 
-    // Filtrar solo finalizadas con score
+    // Si hay app seleccionada, ocultar empty state y mostrar canvas
+    const emptyStateEvol = document.getElementById('emptyStateEvol');
+    if (emptyStateEvol) emptyStateEvol.style.display = 'none';
+    const canvasEvol = document.getElementById('chartEvolucion');
+    if (canvasEvol) canvasEvol.style.display = 'block';
+
+    let evals = [];
+    const res = await fetch(`/api/evaluaciones/${appId}`);
+    evals = await res.json();
     evals = evals.filter(e => e.estado === 'FINALIZADA' && e.puntaje_global !== null).reverse();
 
-    // Destruir charts anteriores si existen
     if (chartEvolucion) { chartEvolucion.destroy(); chartEvolucion = null; }
-    if (chartCategorias) { chartCategorias.destroy(); chartCategorias = null; }
 
-    const ctx1 = document.getElementById('chartEvolucion').getContext('2d');
-    const ctx2 = document.getElementById('chartCategorias').getContext('2d');
+    const ctx1 = canvasEvol.getContext('2d');
 
     if (evals.length > 0) {
         const labels = evals.map((e, i) => `Eval #${e.id}`);
@@ -244,51 +355,107 @@ async function cargarGraficosDashboard(appId) {
             options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { min: 0, max: 100 } } }
         });
 
-        // Doughnut con últimos scores
+        // Barras de progreso con últimos scores
         const last = evals[evals.length - 1];
-        chartCategorias = new Chart(ctx2, {
-            type: 'doughnut',
-            data: {
-                labels: ['Mantenibilidad', 'Seguridad', 'Rendimiento'],
-                datasets: [{ data: [last.puntaje_mantenibilidad || 0, last.puntaje_seguridad || 0, last.puntaje_rendimiento || 0], backgroundColor: ['#4caf50', '#ff9800', '#2196f3'], borderWidth: 2 }]
-            },
-            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-        });
+        containerCats.innerHTML = `
+            <div class="score-bar-item" style="margin-bottom:15px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:14px;font-weight:bold;">
+                    <span style="color:#4caf50;"><i class="fas fa-code"></i> Mantenibilidad</span>
+                    <span>${last.puntaje_mantenibilidad || 0}/100</span>
+                </div>
+                <div style="width:100%;background:#eee;border-radius:10px;height:12px;overflow:hidden;">
+                    <div style="width:${last.puntaje_mantenibilidad || 0}%;background:#4caf50;height:100%;transition:width 0.5s ease;"></div>
+                </div>
+            </div>
+            <div class="score-bar-item" style="margin-bottom:15px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:14px;font-weight:bold;">
+                    <span style="color:#ff9800;"><i class="fas fa-shield-alt"></i> Seguridad</span>
+                    <span>${last.puntaje_seguridad || 0}/100</span>
+                </div>
+                <div style="width:100%;background:#eee;border-radius:10px;height:12px;overflow:hidden;">
+                    <div style="width:${last.puntaje_seguridad || 0}%;background:#ff9800;height:100%;transition:width 0.5s ease;"></div>
+                </div>
+            </div>
+            <div class="score-bar-item">
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:14px;font-weight:bold;">
+                    <span style="color:#2196f3;"><i class="fas fa-tachometer-alt"></i> Rendimiento</span>
+                    <span>${last.puntaje_rendimiento || 0}/100</span>
+                </div>
+                <div style="width:100%;background:#eee;border-radius:10px;height:12px;overflow:hidden;">
+                    <div style="width:${last.puntaje_rendimiento || 0}%;background:#2196f3;height:100%;transition:width 0.5s ease;"></div>
+                </div>
+            </div>
+        `;
     } else {
         chartEvolucion = new Chart(ctx1, { type: 'line', data: { labels: ['Sin datos'], datasets: [{ data: [0] }] }, options: { responsive: true } });
-        chartCategorias = new Chart(ctx2, { type: 'doughnut', data: { labels: ['Sin datos'], datasets: [{ data: [1], backgroundColor: ['#ddd'] }] }, options: { responsive: true } });
+        containerCats.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#888;">Esta aplicación no tiene evaluaciones con scores todavía.</div>';
     }
 }
 
 // ===== CONFIGURACIÓN (RF02, RF03, RF04) =====
-function actualizarEstadoConfiguracion() {
+function actualizarEstadoConfiguracion(fromDropdown = false) {
     const appId = document.getElementById('configAppSelect').value;
     const statusDiv = document.getElementById('configStatus');
+    const targetUrl = document.getElementById('targetUrlInput');
+    const repoUrl = document.getElementById('repoUrlInput');
+    const catSonar = document.getElementById('catSonar');
+    const catZap = document.getElementById('catZap');
+    const catK6 = document.getElementById('catK6');
+    const btnGuardar = document.getElementById('btnGuardarConfig');
+
     if (!statusDiv) return;
 
     if (!appId) {
-        statusDiv.innerHTML = '';
-        document.getElementById('targetUrlInput').value = '';
-        document.getElementById('repoUrlInput').value = '';
+        statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> Seleccione una aplicación para configurar.';
+        statusDiv.style.color = '#666';
+        if (targetUrl) { targetUrl.value = ''; targetUrl.disabled = true; }
+        if (repoUrl) { repoUrl.value = ''; repoUrl.disabled = true; }
+        if (catSonar) { catSonar.checked = false; catSonar.disabled = true; }
+        if (catZap) { catZap.checked = false; catZap.disabled = true; }
+        if (catK6) { catK6.checked = false; catK6.disabled = true; }
+        if (btnGuardar) btnGuardar.disabled = true;
         return;
+    } else {
+        if (targetUrl) targetUrl.disabled = false;
+        if (repoUrl) repoUrl.disabled = false;
+        if (btnGuardar) btnGuardar.disabled = false;
     }
 
     const app = aplicaciones.find(a => a.id == appId);
-    if (app) {
-        document.getElementById('targetUrlInput').value = app.url_objetivo || '';
-        document.getElementById('repoUrlInput').value = app.repositorio || '';
+    if (app && fromDropdown === true) {
+        if (targetUrl) targetUrl.value = app.url_objetivo || '';
+        if (repoUrl) repoUrl.value = app.repositorio || '';
+    }
 
-        let warnings = [];
-        if (!app.url_objetivo) warnings.push('Falta URL objetivo (Requerido para ZAP y k6).');
-        if (!app.repositorio) warnings.push('Falta Repositorio (Requerido para SonarQube).');
+    const currentUrl = targetUrl ? targetUrl.value.trim() : '';
+    const currentRepo = repoUrl ? repoUrl.value.trim() : '';
 
-        if (warnings.length > 0) {
-            statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + warnings.join(' ');
-            statusDiv.style.color = '#c62828';
-        } else {
-            statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Configuración completa.';
-            statusDiv.style.color = '#2e7d32';
-        }
+    let warnings = [];
+    
+    if (catSonar) {
+        catSonar.disabled = !currentRepo;
+        if (!currentRepo) { catSonar.checked = false; warnings.push('Falta Repositorio (para SonarQube).'); }
+        else if (fromDropdown) catSonar.checked = true; // Auto check if valid when selecting
+    }
+    
+    if (catZap) {
+        catZap.disabled = !currentUrl;
+        if (!currentUrl) { catZap.checked = false; warnings.push('Falta URL (para ZAP y k6).'); }
+        else if (fromDropdown) catZap.checked = true;
+    }
+    
+    if (catK6) {
+        catK6.disabled = !currentUrl;
+        if (!currentUrl) { catK6.checked = false; }
+        else if (fromDropdown) catK6.checked = true;
+    }
+
+    if (warnings.length > 0) {
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + warnings.join(' ');
+        statusDiv.style.color = '#c62828';
+    } else {
+        statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Listo para ejecutar.';
+        statusDiv.style.color = '#2e7d32';
     }
 }
 
@@ -328,7 +495,10 @@ async function guardarConfiguracion() {
         alert('¡Configuración guardada con éxito!');
         // Auto-seleccionar en ejecución
         const execSel = document.getElementById('execAppSelect');
-        if (execSel) execSel.value = appId;
+        if (execSel) {
+            execSel.value = appId;
+            await cargarConfigParaEjecucion();
+        }
         showScreen('ejecucion');
     } catch (e) {
         alert('Error al guardar configuración: ' + e.message);
@@ -336,6 +506,47 @@ async function guardarConfiguracion() {
 }
 
 // ===== EJECUCIÓN (RF05, RF10) =====
+
+async function cargarConfigParaEjecucion() {
+    const appId = document.getElementById('execAppSelect').value;
+    const runSonar = document.getElementById('runSonar');
+    const runZap = document.getElementById('runZap');
+    const runK6 = document.getElementById('runK6');
+    const btn = document.getElementById('btnEjecutar');
+
+    if (!appId) {
+        if (runSonar) { runSonar.checked = false; runSonar.disabled = true; }
+        if (runZap) { runZap.checked = false; runZap.disabled = true; }
+        if (runK6) { runK6.checked = false; runK6.disabled = true; }
+        if (btn) btn.disabled = true;
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/configuraciones/${appId}`);
+        const configs = await res.json();
+        
+        if (runSonar) { runSonar.checked = false; runSonar.disabled = true; }
+        if (runZap) { runZap.checked = false; runZap.disabled = true; }
+        if (runK6) { runK6.checked = false; runK6.disabled = true; }
+        if (btn) btn.disabled = true;
+
+        if (configs && configs.length > 0) {
+            const config = configs[0]; // La más reciente
+            const cats = JSON.parse(config.categorias || '[]');
+            
+            if (cats.includes('MANTENIBILIDAD') && runSonar) { runSonar.checked = true; runSonar.disabled = false; }
+            if (cats.includes('SEGURIDAD') && runZap) { runZap.checked = true; runZap.disabled = false; }
+            if (cats.includes('RENDIMIENTO') && runK6) { runK6.checked = true; runK6.disabled = false; }
+            
+            if (cats.length > 0 && btn) btn.disabled = false;
+        } else {
+            alert('Esta aplicación no tiene configuraciones previas. Por favor, configúrela primero.');
+        }
+    } catch (e) {
+        console.error('Error cargando configuración:', e);
+    }
+}
 
 function setToolCardState(toolKey, state) {
     const card = document.getElementById(`tool-${toolKey}`);

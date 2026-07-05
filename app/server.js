@@ -68,6 +68,61 @@ app.get('/api/aplicaciones', (req, res) => {
     });
 });
 
+// Eliminar aplicación (y dependencias para evitar error FK)
+app.delete('/api/aplicaciones/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+
+        // 1. Borrar Hallazgos (dependen de Resultado)
+        db.run(`DELETE FROM Hallazgo WHERE id_resultado IN (
+            SELECT id FROM Resultado WHERE id_evaluacion IN (
+                SELECT id FROM Evaluacion WHERE id_aplicacion = ?
+            )
+        )`, [id]);
+
+        // 2. Borrar dependientes directos de Evaluacion
+        db.run(`DELETE FROM Resultado WHERE id_evaluacion IN (SELECT id FROM Evaluacion WHERE id_aplicacion = ?)`, [id]);
+        db.run(`DELETE FROM Metrica WHERE id_evaluacion IN (SELECT id FROM Evaluacion WHERE id_aplicacion = ?)`, [id]);
+        db.run(`DELETE FROM Score WHERE id_evaluacion IN (SELECT id FROM Evaluacion WHERE id_aplicacion = ?)`, [id]);
+        db.run(`DELETE FROM Reporte WHERE id_evaluacion IN (SELECT id FROM Evaluacion WHERE id_aplicacion = ?)`, [id]);
+
+        // 3. Borrar Evaluacion y ConfiguracionEvaluacion
+        db.run(`DELETE FROM Evaluacion WHERE id_aplicacion = ?`, [id]);
+        db.run(`DELETE FROM ConfiguracionEvaluacion WHERE id_aplicacion = ?`, [id]);
+
+        // 4. Borrar la Aplicacion
+        db.run(`DELETE FROM Aplicacion WHERE id = ?`, [id], function(err) {
+            if (err) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: err.message });
+            }
+            if (this.changes === 0) {
+                db.run('ROLLBACK');
+                return res.status(404).json({ error: 'Aplicación no encontrada.' });
+            }
+            db.run('COMMIT', (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ success: true, message: 'Aplicación eliminada.' });
+            });
+        });
+    });
+});
+
+// Actualizar aplicación
+app.put('/api/aplicaciones/:id', (req, res) => {
+    const id = req.params.id;
+    const { nombre, descripcion, url_objetivo, repositorio } = req.body;
+    db.run(`UPDATE Aplicacion SET nombre = ?, descripcion = ?, url_objetivo = ?, repositorio = ? WHERE id = ?`,
+        [nombre, descripcion, url_objetivo, repositorio, id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Aplicación no encontrada.' });
+            res.json({ success: true, message: 'Aplicación actualizada.' });
+        });
+});
+
+
 // ========== HERRAMIENTAS ==========
 
 app.get('/api/herramientas', (req, res) => {
