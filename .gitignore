@@ -4,6 +4,7 @@ nfr_framework.db
 .DS_Store
 temp/
 reports/
+app/scripts/
 
 # Excluir documentos de trabajo interno, planes de IA y scripts auxiliares
 implementation_plan.md

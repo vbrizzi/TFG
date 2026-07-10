@@ -569,9 +569,21 @@ function setToolCardState(toolKey, state) {
     card.classList.toggle('tool-running', state === 'running');
 }
 
+// ===== TOGGLE LOG PANEL =====
+function toggleLogPanel(tool) {
+    const key = tool.charAt(0).toUpperCase() + tool.slice(1);
+    const logArea = document.getElementById('log' + key);
+    const chevron = document.getElementById('chevron-' + tool);
+    if (!logArea) return;
+    const isHidden = logArea.style.display === 'none';
+    logArea.style.display = isHidden ? 'block' : 'none';
+    if (chevron) chevron.classList.toggle('collapsed', !isHidden);
+}
+
+// ===== EJECUCION REAL CON LOGS EN TIEMPO REAL =====
 async function simularEjecucion() {
     const appId = document.getElementById('execAppSelect').value;
-    if (!appId) { alert('Por favor seleccione una aplicación para evaluar.'); return; }
+    if (!appId) { alert('Por favor seleccione una aplicacion para evaluar.'); return; }
     const app = aplicaciones.find(a => a.id == appId);
 
     const runSonar = document.getElementById('runSonar').checked;
@@ -585,42 +597,64 @@ async function simularEjecucion() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando...';
     btn.style.background = '#555';
 
-    // Estado inicial de tarjetas
     setToolCardState('sonar', runSonar ? 'pending' : 'skipped');
     setToolCardState('zap',   runZap   ? 'pending' : 'skipped');
     setToolCardState('k6',    runK6    ? 'pending' : 'skipped');
 
-    document.getElementById('exec-log').style.display = 'block';
-    const log = document.getElementById('logArea');
-    log.innerHTML = `[INFO] Iniciando evaluación para: ${app.nombre}\n`;
-    log.innerHTML += `[INFO] Herramientas: ${[runSonar&&'SonarQube', runZap&&'ZAP', runK6&&'k6'].filter(Boolean).join(', ')}\n`;
+    // Mostrar paneles de log
+    document.getElementById('logs-container').style.display = 'block';
+    ['sonar', 'zap', 'k6'].forEach(tool => {
+        const selected = (tool === 'sonar' ? runSonar : tool === 'zap' ? runZap : runK6);
+        document.getElementById('log-panel-' + tool).style.display = selected ? 'block' : 'none';
+        const key = tool.charAt(0).toUpperCase() + tool.slice(1);
+        const logEl = document.getElementById('log' + key);
+        if (logEl) logEl.textContent = '';
+    });
 
     let evalId = null;
     let pollInterval = null;
+    const sseConnections = [];
 
-    // Función de polling para actualizar tarjetas en tiempo real
+    const appendLog = (tool, line) => {
+        const key = tool.charAt(0).toUpperCase() + tool.slice(1);
+        const logEl = document.getElementById('log' + key);
+        if (!logEl) return;
+        logEl.textContent += line + '\n';
+        logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    const subscribeSSE = (tool) => {
+        const sse = new EventSource('/api/evaluar/logs/' + evalId + '/' + tool);
+        sse.onmessage = (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                if (data.log) appendLog(tool, data.log);
+            } catch(err) {}
+        };
+        sse.onerror = () => sse.close();
+        sseConnections.push(sse);
+    };
+
     const startPolling = () => {
         pollInterval = setInterval(async () => {
             if (!evalId) return;
             try {
-                const r = await fetch(`/api/evaluar/progreso/${evalId}`);
+                const r = await fetch('/api/evaluar/progreso/' + evalId);
                 const data = await r.json();
                 const p = data.progreso || {};
-
                 if (runSonar) setToolCardState('sonar', p.sonar || 'pending');
                 if (runZap)   setToolCardState('zap',   p.zap   || 'pending');
                 if (runK6)    setToolCardState('k6',    p.k6    || 'pending');
-
                 if (data.estado === 'FINALIZADA' || data.estado === 'ERROR') {
                     clearInterval(pollInterval);
                 }
-            } catch(e) { /* servidor ocupado, reintenta */ }
+            } catch(e) {}
         }, 1500);
     };
 
     try {
-        // Iniciar evaluación en background (no await todavía)
-        const evalPromise = fetch('/api/evaluar', {
+        // POST /api/evaluar ahora responde INMEDIATAMENTE con el evalId
+        const evalRes = await fetch('/api/evaluar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -631,59 +665,67 @@ async function simularEjecucion() {
                 runSonar, runZap, runK6
             })
         });
-
-        // Pequeña espera para que el backend cree el registro y tengamos el evalId
-        await new Promise(r => setTimeout(r, 800));
-
-        // Obtener el evalId de la última evaluación creada para esta app
-        const histRes = await fetch(`/api/evaluaciones/${app.id}`);
-        const histData = await histRes.json();
-        if (histData && histData.length > 0) {
-            evalId = histData[0].id;
-            log.innerHTML += `[INFO] Evaluación #${evalId} iniciada en servidor.\n`;
-            startPolling();
-        }
-
-        // Ahora sí esperamos el resultado final
-        const evalRes = await evalPromise;
         const evalData = await evalRes.json();
-        clearInterval(pollInterval);
-
         if (evalData.error) throw new Error(evalData.error);
 
-        // Estado final de las tarjetas
+        evalId = evalData.id_evaluacion;
+
+        // Suscribirse al SSE de cada herramienta activa AHORA que tenemos el evalId
+        if (runSonar) subscribeSSE('sonar');
+        if (runZap)   subscribeSSE('zap');
+        if (runK6)    subscribeSSE('k6');
+
+        // Arrancar polling de tarjetas
+        startPolling();
+
+        // Esperar que la evaluación finalice (polling hasta FINALIZADA o ERROR)
+        await new Promise((resolve) => {
+            const checkDone = setInterval(async () => {
+                try {
+                    const r = await fetch('/api/evaluar/progreso/' + evalId);
+                    const d = await r.json();
+                    if (d.estado === 'FINALIZADA' || d.estado === 'ERROR') {
+                        clearInterval(checkDone);
+                        resolve(d);
+                    }
+                } catch(e) {}
+            }, 2000);
+        });
+
+        clearInterval(pollInterval);
+        sseConnections.forEach(s => s.close());
+
+        // Obtener el score final desde la BD
+        const finalRes = await fetch('/api/evaluar/progreso/' + evalId);
+        // El score real llega por SSE en los logs, pero también actualizamos tarjetas
         if (runSonar) setToolCardState('sonar', 'done');
         if (runZap)   setToolCardState('zap',   'done');
         if (runK6)    setToolCardState('k6',    'done');
 
-        log.innerHTML += `[✓] Evaluación #${evalData.id_evaluacion} finalizada.\n`;
-        log.innerHTML += `[SCORE] Mantenibilidad: ${evalData.scores.quality} | Seguridad: ${evalData.scores.security} | Rendimiento: ${evalData.scores.performance}\n`;
-        log.innerHTML += `[SCORE] Score Global: ${evalData.scores.global}/100\n`;
-        log.innerHTML += `[INFO] Hallazgos: ${evalData.hallazgos_count} | Métricas: ${evalData.metricas_count}\n`;
-
-        window.lastEvalId = evalData.id_evaluacion;
-        btn.innerHTML = '<i class="fas fa-check"></i> ¡Evaluación Completada!';
+        window.lastEvalId = evalId;
+        btn.innerHTML = '<i class="fas fa-check"></i> Evaluacion Completada!';
         btn.style.background = '#4caf50';
 
     } catch (e) {
         clearInterval(pollInterval);
-        log.innerHTML += `[ERROR] ${e.message}\n`;
-        if (runSonar) setToolCardState('sonar', 'error');
-        if (runZap)   setToolCardState('zap',   'error');
-        if (runK6)    setToolCardState('k6',    'error');
-        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error en evaluación';
+        sseConnections.forEach(s => s.close());
+        if (runSonar) { appendLog('sonar', 'ERROR: ' + e.message); setToolCardState('sonar', 'error'); }
+        if (runZap)   { appendLog('zap',   'ERROR: ' + e.message); setToolCardState('zap',   'error'); }
+        if (runK6)    { appendLog('k6',    'ERROR: ' + e.message); setToolCardState('k6',    'error'); }
+        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error en evaluacion';
         btn.style.background = '#f44336';
     }
 
     setTimeout(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-play"></i> Ejecutar Evaluación';
+        btn.innerHTML = '<i class="fas fa-play"></i> Ejecutar Evaluacion';
         btn.style.background = '';
-    }, 4000);
+    }, 5000);
 }
 
 
 // ===== RESULTADOS DINÁMICOS (RF11, RF13) =====
+
 async function cargarResultados() {
     const appId = document.getElementById('resultadosAppSelect').value;
     const evalSelect = document.getElementById('resultadosEvalSelect');

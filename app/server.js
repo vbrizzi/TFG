@@ -16,6 +16,82 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// ========== SISTEMA DE LOGS EN TIEMPO REAL ==========
+// Buffer de logs por evaluacion y herramienta, con suscriptores SSE.
+const evalLogs = new Map(); // evalId -> { sonar: [], zap: [], k6: [] }
+const evalSubs = new Map(); // evalId -> { sonar: [res...], zap: [res...], k6: [res...] }
+
+function initEvalLogs(evalId) {
+    evalLogs.set(evalId, { sonar: [], zap: [], k6: [], general: [] });
+    evalSubs.set(evalId, { sonar: [], zap: [], k6: [], general: [] });
+}
+
+function pushLog(evalId, tool, message) {
+    const logs = evalLogs.get(evalId);
+    if (!logs) return;
+    const entry = `[${new Date().toISOString().substring(11,19)}] ${message}`;
+    if (logs[tool]) logs[tool].push(entry);
+    logs.general.push(`[${tool.toUpperCase()}] ${entry}`);
+
+    // Notificar a los suscriptores SSE
+    const subs = evalSubs.get(evalId);
+    if (subs && subs[tool]) {
+        subs[tool].forEach(res => {
+            try { res.write(`data: ${JSON.stringify({ log: entry })}\n\n`); } catch(e) {}
+        });
+    }
+}
+
+function cleanEvalLogs(evalId) {
+    // Cerrar conexiones y limpiar después de 5 minutos
+    setTimeout(() => {
+        const subs = evalSubs.get(evalId);
+        if (subs) {
+            Object.values(subs).forEach(arr => arr.forEach(res => { try { res.end(); } catch(e) {} }));
+        }
+        evalLogs.delete(evalId);
+        evalSubs.delete(evalId);
+    }, 5 * 60 * 1000);
+}
+
+// Endpoint SSE: el frontend se suscribe para recibir logs de una herramienta específica
+app.get('/api/evaluar/logs/:id/:tool', (req, res) => {
+    const { id, tool } = req.params;
+    const evalId = parseInt(id);
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    // Enviar logs previos que ya se acumularon
+    const logs = evalLogs.get(evalId);
+    if (logs && logs[tool]) {
+        logs[tool].forEach(entry => {
+            res.write(`data: ${JSON.stringify({ log: entry })}\n\n`);
+        });
+    }
+
+    // Registrar suscriptor
+    const subs = evalSubs.get(evalId);
+    if (subs && subs[tool]) {
+        subs[tool].push(res);
+    } else {
+        // Si no hay buffer, mandar un mensaje de no encontrado
+        res.write(`data: ${JSON.stringify({ log: 'Evaluación no encontrada o ya finalizada.' })}\n\n`);
+        res.end();
+        return;
+    }
+
+    req.on('close', () => {
+        const s = evalSubs.get(evalId);
+        if (s && s[tool]) {
+            const idx = s[tool].indexOf(res);
+            if (idx > -1) s[tool].splice(idx, 1);
+        }
+    });
+});
+
 // ========== HEALTH ==========
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'NFR Framework Orchestrator is running' });
@@ -190,132 +266,152 @@ app.post('/api/evaluar', async (req, res) => {
         );
     });
 
-    // 2. Actualizar a EN_PROCESO
+    // 2. Actualizar a EN_PROCESO e inicializar buffer de logs
     db.run(`UPDATE Evaluacion SET estado = 'EN_PROCESO' WHERE id = ?`, [evalId]);
+    initEvalLogs(evalId);
 
-    try {
-        console.log(`[Orchestrator] Evaluación #${evalId} iniciada para ${projectName}`);
+    // 3. *** RESPONDER DE INMEDIATO AL CLIENTE con el evalId ***
+    // La evaluación corre en background; el frontend usa SSE + polling para monitorear.
+    res.json({ id_evaluacion: evalId, estado: 'EN_PROCESO' });
 
-        let sonarRes = { status: 'skipped', data: {} };
-        let zapRes = { status: 'skipped', data: {} };
-        let k6Res = { status: 'skipped', data: {} };
+    // 4. Correr la evaluación de forma asíncrona (fire-and-forget)
+    setImmediate(async () => {
+        try {
+            console.log(`[Orchestrator] Evaluación #${evalId} iniciada en background para ${projectName}`);
 
-        // Helper para guardar progreso en BD
-        const setProgreso = (herramienta, estado) => {
-            db.run(`UPDATE Evaluacion SET progreso = json_patch(COALESCE(progreso,'{}'), ?) WHERE id = ?`,
-                [JSON.stringify({ [herramienta]: estado }), evalId]);
-        };
+            let sonarRes = { status: 'skipped', data: {} };
+            let zapRes   = { status: 'skipped', data: {} };
+            let k6Res    = { status: 'skipped', data: {} };
 
-        // 3. Ejecutar herramientas seleccionadas
-        if (runSonar) {
-            setProgreso('sonar', 'running');
-            try {
-                sonarRes = await sonarService.analyze(repositoryUrl, projectName);
-                setProgreso('sonar', 'done');
-            } catch (e) {
-                sonarRes = { status: 'error', data: {}, error: e.message };
-                setProgreso('sonar', 'error');
-            }
-        }
-        if (runZap) {
-            setProgreso('zap', 'running');
-            try {
-                zapRes = await zapService.scan(targetUrl, projectName);
-                setProgreso('zap', 'done');
-            } catch (e) {
-                zapRes = { status: 'error', data: {}, error: e.message };
-                setProgreso('zap', 'error');
-            }
-        }
-        if (runK6) {
-            setProgreso('k6', 'running');
-            try {
-                k6Res = await k6Service.runTest(targetUrl, projectName);
-                setProgreso('k6', 'done');
-            } catch (e) {
-                k6Res = { status: 'error', data: {}, error: e.message };
-                setProgreso('k6', 'error');
-            }
-        }
+            // Helper para guardar progreso en BD
+            const setProgreso = (herramienta, estado) => {
+                db.run(`UPDATE Evaluacion SET progreso = json_patch(COALESCE(progreso,'{}'), ?) WHERE id = ?`,
+                    [JSON.stringify({ [herramienta]: estado }), evalId]);
+            };
 
-        // 4. Insertar Resultados (uno por herramienta)
-        const insertResult = (categoria, herramienta, datos) => {
-            return new Promise((resolve, reject) => {
-                db.run(
-                    `INSERT INTO Resultado (id_evaluacion, categoria, herramienta_utilizada, datos) VALUES (?, ?, ?, ?)`,
-                    [evalId, categoria, herramienta, JSON.stringify(datos)],
-                    function(err) {
-                        if (err) return reject(err);
-                        resolve(this.lastID);
-                    }
-                );
-            });
-        };
+            // Helpers de log por herramienta
+            const logSonar = (msg) => { pushLog(evalId, 'sonar', msg); console.log(msg); };
+            const logZap   = (msg) => { pushLog(evalId, 'zap',   msg); console.log(msg); };
+            const logK6    = (msg) => { pushLog(evalId, 'k6',    msg); console.log(msg); };
 
-        let sonarResultId = null, zapResultId = null, k6ResultId = null;
-        if (runSonar) sonarResultId = await insertResult('MANTENIBILIDAD', 'SonarQube', sonarRes.data || {});
-        if (runZap) zapResultId = await insertResult('SEGURIDAD', 'OWASP ZAP', zapRes.data || {});
-        if (runK6) k6ResultId = await insertResult('RENDIMIENTO', 'k6', k6Res.data || {});
-
-        // 5. Procesar resultados con el evaluator
-        const processed = evaluator.processReports(
-            sonarRes.data || null,
-            zapRes.data || null,
-            k6Res.data || null
-        );
-
-        // 6. Insertar Hallazgos
-        if (processed.hallazgos && processed.hallazgos.length > 0) {
-            const insertHallazgo = db.prepare(
-                `INSERT INTO Hallazgo (id_resultado, severidad, categoria_calidad, descripcion, recomendacion) VALUES (?, ?, ?, ?, ?)`
-            );
-            for (const h of processed.hallazgos) {
-                const resultId = h.categoria === 'SEGURIDAD' ? zapResultId :
-                                 h.categoria === 'RENDIMIENTO' ? k6ResultId : sonarResultId;
-                if (resultId) {
-                    insertHallazgo.run([resultId, h.severidad, h.categoria, h.descripcion, h.recomendacion || null]);
+            // 5. Ejecutar herramientas seleccionadas
+            if (runSonar) {
+                setProgreso('sonar', 'running');
+                try {
+                    sonarRes = await sonarService.analyze(repositoryUrl, projectName, logSonar);
+                    setProgreso('sonar', sonarRes.status === 'error' ? 'error' : 'done');
+                } catch (e) {
+                    logSonar(`[SonarQube] ❌ Error inesperado: ${e.message}`);
+                    sonarRes = { status: 'error', data: {}, error: e.message };
+                    setProgreso('sonar', 'error');
                 }
             }
-            insertHallazgo.finalize();
-        }
-
-        // 7. Insertar Métricas
-        if (processed.metricas && processed.metricas.length > 0) {
-            const insertMetrica = db.prepare(
-                `INSERT INTO Metrica (id_evaluacion, nombre, valor, valor_normalizado, unidad, categoria) VALUES (?, ?, ?, ?, ?, ?)`
-            );
-            for (const m of processed.metricas) {
-                insertMetrica.run([evalId, m.nombre, m.valor, m.valorNormalizado, m.unidad || null, m.categoria]);
+            if (runZap) {
+                setProgreso('zap', 'running');
+                try {
+                    zapRes = await zapService.scan(targetUrl, projectName, logZap);
+                    setProgreso('zap', zapRes.status === 'error' ? 'error' : 'done');
+                } catch (e) {
+                    logZap(`[OWASP ZAP] ❌ Error inesperado: ${e.message}`);
+                    zapRes = { status: 'error', data: {}, error: e.message };
+                    setProgreso('zap', 'error');
+                }
             }
-            insertMetrica.finalize();
+            if (runK6) {
+                setProgreso('k6', 'running');
+                try {
+                    k6Res = await k6Service.runTest(targetUrl, projectName, logK6);
+                    setProgreso('k6', k6Res.status === 'error' ? 'error' : 'done');
+                } catch (e) {
+                    logK6(`[k6] ❌ Error inesperado: ${e.message}`);
+                    k6Res = { status: 'error', data: {}, error: e.message };
+                    setProgreso('k6', 'error');
+                }
+            }
+
+            // 6. Insertar Resultados (uno por herramienta)
+            const insertResult = (categoria, herramienta, datos) => {
+                return new Promise((resolve, reject) => {
+                    db.run(
+                        `INSERT INTO Resultado (id_evaluacion, categoria, herramienta_utilizada, datos) VALUES (?, ?, ?, ?)`,
+                        [evalId, categoria, herramienta, JSON.stringify(datos)],
+                        function(err) {
+                            if (err) return reject(err);
+                            resolve(this.lastID);
+                        }
+                    );
+                });
+            };
+
+            let sonarResultId = null, zapResultId = null, k6ResultId = null;
+            if (runSonar) sonarResultId = await insertResult('MANTENIBILIDAD', 'SonarQube', sonarRes.data || {});
+            if (runZap)   zapResultId   = await insertResult('SEGURIDAD',      'OWASP ZAP', zapRes.data   || {});
+            if (runK6)    k6ResultId    = await insertResult('RENDIMIENTO',    'k6',        k6Res.data    || {});
+
+            // 7. Procesar resultados con el evaluator
+            const processed = evaluator.processReports(
+                sonarRes.data || null,
+                zapRes.data   || null,
+                k6Res.data    || null
+            );
+
+            // 8. Insertar Hallazgos
+            if (processed.hallazgos && processed.hallazgos.length > 0) {
+                const insertHallazgo = db.prepare(
+                    `INSERT INTO Hallazgo (id_resultado, severidad, categoria_calidad, descripcion, recomendacion) VALUES (?, ?, ?, ?, ?)`
+                );
+                for (const h of processed.hallazgos) {
+                    const resultId = h.categoria === 'SEGURIDAD' ? zapResultId :
+                                     h.categoria === 'RENDIMIENTO' ? k6ResultId : sonarResultId;
+                    if (resultId) {
+                        insertHallazgo.run([resultId, h.severidad, h.categoria, h.descripcion, h.recomendacion || null]);
+                    }
+                }
+                insertHallazgo.finalize();
+            }
+
+            // 9. Insertar Métricas
+            if (processed.metricas && processed.metricas.length > 0) {
+                const insertMetrica = db.prepare(
+                    `INSERT INTO Metrica (id_evaluacion, nombre, valor, valor_normalizado, unidad, categoria) VALUES (?, ?, ?, ?, ?, ?)`
+                );
+                for (const m of processed.metricas) {
+                    insertMetrica.run([evalId, m.nombre, m.valor, m.valorNormalizado, m.unidad || null, m.categoria]);
+                }
+                insertMetrica.finalize();
+            }
+
+            // 10. Insertar Score
+            db.run(
+                `INSERT INTO Score (id_evaluacion, puntaje_global, puntaje_mantenibilidad, puntaje_seguridad, puntaje_rendimiento) VALUES (?, ?, ?, ?, ?)`,
+                [evalId, processed.scores.global, processed.scores.quality, processed.scores.security, processed.scores.performance]
+            );
+
+            // 11. Actualizar estado a FINALIZADA
+            db.run(`UPDATE Evaluacion SET estado = 'FINALIZADA' WHERE id = ?`, [evalId]);
+
+            // Emitir scores finales por SSE y cerrar streams
+            pushLog(evalId, 'sonar', `\n[RESULTADO] Score Mantenibilidad: ${processed.scores.quality}/100`);
+            pushLog(evalId, 'zap',   `\n[RESULTADO] Score Seguridad: ${processed.scores.security}/100`);
+            pushLog(evalId, 'k6',    `\n[RESULTADO] Score Rendimiento: ${processed.scores.performance}/100`);
+
+            cleanEvalLogs(evalId);
+            console.log(`[Orchestrator] Evaluación #${evalId} FINALIZADA. Scores: Q=${processed.scores.quality} S=${processed.scores.security} P=${processed.scores.performance}`);
+
+        } catch (err) {
+            db.run(`UPDATE Evaluacion SET estado = 'ERROR' WHERE id = ?`, [evalId]);
+            console.error(`[Orchestrator] Error en evaluación #${evalId}:`, err);
+            pushLog(evalId, 'sonar', `[ERROR CRÍTICO] ${err.message}`);
+            pushLog(evalId, 'zap',   `[ERROR CRÍTICO] ${err.message}`);
+            pushLog(evalId, 'k6',    `[ERROR CRÍTICO] ${err.message}`);
+            cleanEvalLogs(evalId);
         }
+    });
 
-        // 8. Insertar Score
-        db.run(
-            `INSERT INTO Score (id_evaluacion, puntaje_global, puntaje_mantenibilidad, puntaje_seguridad, puntaje_rendimiento) VALUES (?, ?, ?, ?, ?)`,
-            [evalId, processed.scores.global, processed.scores.quality, processed.scores.security, processed.scores.performance]
-        );
-
-        // 9. Actualizar estado a FINALIZADA
-        db.run(`UPDATE Evaluacion SET estado = 'FINALIZADA' WHERE id = ?`, [evalId]);
-
-        res.json({
-            id_evaluacion: evalId,
-            estado: 'FINALIZADA',
-            scores: processed.scores,
-            hallazgos_count: (processed.hallazgos || []).length,
-            metricas_count: (processed.metricas || []).length
-        });
-
-    } catch (err) {
-        // En caso de error global, marcar la evaluación como ERROR
-        db.run(`UPDATE Evaluacion SET estado = 'ERROR' WHERE id = ?`, [evalId]);
-        console.error(`[Orchestrator] Error en evaluación #${evalId}:`, err);
-        res.status(500).json({ error: err.message, id_evaluacion: evalId, estado: 'ERROR' });
-    }
 });
 
 // Consultar progreso de una evaluación en curso
+
 app.get('/api/evaluar/progreso/:id', (req, res) => {
     db.get(
         `SELECT id, estado, progreso FROM Evaluacion WHERE id = ?`,

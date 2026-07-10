@@ -114,7 +114,14 @@ body { font-family: 'Inter', sans-serif; display: flex; min-height: 100vh; backg
 .tool-status { margin-bottom: 10px; }
 .progress-bar { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
 .progress-fill { height: 100%; background: #6c63ff; border-radius: 3px; transition: width 0.5s ease; }
-.log-area { background: #1a1a2e; color: #a0f0a0; padding: 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 400px; height: 300px; overflow-y: auto; line-height: 1.8; }
+.log-area { background: #0d1117; color: #a0f0a0; padding: 16px; border-radius: 0 0 8px 8px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 320px; overflow-y: auto; line-height: 1.9; white-space: pre-wrap; word-break: break-all; }
+.log-panel { padding: 0 !important; overflow: hidden; }
+.log-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; cursor: pointer; background: #1e1e2e; color: #c9d1d9; font-weight: 600; font-size: 14px; user-select: none; }
+.log-panel-header:hover { background: #252540; }
+.log-panel-header span i { margin-right: 8px; color: #6c63ff; }
+.log-chevron { transition: transform 0.3s ease; color: #6c63ff; }
+.log-chevron.collapsed { transform: rotate(-90deg); }
+
 
 /* ===== RESULTS / SCORES ===== */
 .score-global-container { display: flex; align-items: center; gap: 40px; background: #fff; border-radius: 12px; padding: 24px 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px; }

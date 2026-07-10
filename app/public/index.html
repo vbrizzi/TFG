@@ -250,11 +250,33 @@
                     <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
                 </div>
             </div>
-            <div class="card" id="exec-log" style="display:none;">
-                <h3>Log de ejecución</h3>
-                <div class="log-area" id="logArea"></div>
+            </div>
+            <!-- Paneles de Log: uno por herramienta, se muestran solo si la herramienta está seleccionada -->
+            <div id="logs-container" style="display:none; margin-top:16px;">
+                <div class="card log-panel" id="log-panel-sonar" style="display:none;">
+                    <div class="log-panel-header" onclick="toggleLogPanel('sonar')">
+                        <span><i class="fas fa-code"></i> Log SonarQube</span>
+                        <i class="fas fa-chevron-down log-chevron" id="chevron-sonar"></i>
+                    </div>
+                    <div class="log-area" id="logSonar" style="display:block;"></div>
+                </div>
+                <div class="card log-panel" id="log-panel-zap" style="display:none; margin-top:12px;">
+                    <div class="log-panel-header" onclick="toggleLogPanel('zap')">
+                        <span><i class="fas fa-shield-alt"></i> Log OWASP ZAP</span>
+                        <i class="fas fa-chevron-down log-chevron" id="chevron-zap"></i>
+                    </div>
+                    <div class="log-area" id="logZap" style="display:block;"></div>
+                </div>
+                <div class="card log-panel" id="log-panel-k6" style="display:none; margin-top:12px;">
+                    <div class="log-panel-header" onclick="toggleLogPanel('k6')">
+                        <span><i class="fas fa-tachometer-alt"></i> Log k6</span>
+                        <i class="fas fa-chevron-down log-chevron" id="chevron-k6"></i>
+                    </div>
+                    <div class="log-area" id="logK6" style="display:block;"></div>
+                </div>
             </div>
         </section>
+
 
         <!-- ===== PANTALLA 5: RESULTADOS ===== -->
         <section class="screen" id="resultados">
