@@ -28,15 +28,16 @@ db.serialize(() => {
     );
 
     // ── 2. EVALUACIONES con distintos scores (simulan evolución en el tiempo) ─
-    // Cada evaluación tiene scores que van mejorando gradualmente
+    // Cada evaluación tiene scores que van mejorando gradualmente pero terminan bajos 
+    // para que la ejecución real en la demo (que da ~90-100) muestre una "mejora" clara.
     const evaluaciones = [
-        { id: 101, dias: -25, estado: 'FINALIZADA', mant: 45, seg: 30, perf: 55, global: 42 },
-        { id: 102, dias: -20, estado: 'FINALIZADA', mant: 52, seg: 40, perf: 60, global: 50 },
-        { id: 103, dias: -15, estado: 'FINALIZADA', mant: 60, seg: 48, perf: 65, global: 57 },
-        { id: 104, dias: -10, estado: 'FINALIZADA', mant: 68, seg: 55, perf: 72, global: 65 },
-        { id: 105, dias: -7,  estado: 'FINALIZADA', mant: 74, seg: 62, perf: 78, global: 71 },
-        { id: 106, dias: -4,  estado: 'FINALIZADA', mant: 80, seg: 70, perf: 83, global: 77 },
-        { id: 107, dias: -1,  estado: 'FINALIZADA', mant: 85, seg: 76, perf: 88, global: 83 },
+        { id: 101, dias: -25, estado: 'FINALIZADA', mant: 30, seg: 20, perf: 45, global: 32 },
+        { id: 102, dias: -20, estado: 'FINALIZADA', mant: 42, seg: 30, perf: 50, global: 41 },
+        { id: 103, dias: -15, estado: 'FINALIZADA', mant: 50, seg: 38, perf: 55, global: 48 },
+        { id: 104, dias: -10, estado: 'FINALIZADA', mant: 58, seg: 45, perf: 62, global: 55 },
+        { id: 105, dias: -7,  estado: 'FINALIZADA', mant: 62, seg: 50, perf: 68, global: 60 },
+        { id: 106, dias: -4,  estado: 'FINALIZADA', mant: 65, seg: 55, perf: 72, global: 64 },
+        { id: 107, dias: -1,  estado: 'FINALIZADA', mant: 68, seg: 58, perf: 75, global: 67 },
     ];
 
     evaluaciones.forEach(ev => {
