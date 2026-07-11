@@ -158,6 +158,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 (2, 'OWASP ZAP', 'SEGURIDAD', '2.15', '{"scanType": "baseline"}'),
                 (3, 'k6', 'RENDIMIENTO', '0.49', '{"vus": 10, "duration": "10s"}')`);
 
+            // ========== SEED: Aplicación Demo ==========
+            db.run(`INSERT OR IGNORE INTO Aplicacion (id, nombre, descripcion, repositorio, url_objetivo) VALUES
+                (99, 'App Demo TFG', 'Aplicación vulnerable de prueba para demostración del framework', 'https://github.com/bkimminich/juice-shop.git', 'http://host.docker.internal:3000')`);
+
             console.log('All tables initialized (diagram-aligned schema).');
         });
     }
