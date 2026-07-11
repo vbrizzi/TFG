@@ -160,7 +160,58 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
             // ========== SEED: Aplicación Demo ==========
             db.run(`INSERT OR IGNORE INTO Aplicacion (id, nombre, descripcion, repositorio, url_objetivo) VALUES
-                (99, 'App Demo TFG', 'Aplicación vulnerable de prueba para demostración del framework', 'https://github.com/bkimminich/juice-shop.git', 'http://host.docker.internal:3000')`);
+                (99, 'App Demo TFG', 'Aplicación vulnerable de prueba para demostración del framework', 'https://github.com/vbrizzi/TFG.git', 'http://host.docker.internal:3000')`, (err) => {
+                
+                // Si no hubo error insertando la app, vamos a sembrar el historial falso para la demo
+                if (!err) {
+                    const evaluaciones = [
+                        { id: 101, dias: -25, estado: 'FINALIZADA', mant: 30, seg: 20, perf: 45, global: 32 },
+                        { id: 102, dias: -20, estado: 'FINALIZADA', mant: 42, seg: 30, perf: 50, global: 41 },
+                        { id: 103, dias: -15, estado: 'FINALIZADA', mant: 50, seg: 38, perf: 55, global: 48 },
+                        { id: 104, dias: -10, estado: 'FINALIZADA', mant: 58, seg: 45, perf: 62, global: 55 },
+                        { id: 105, dias: -7,  estado: 'FINALIZADA', mant: 62, seg: 50, perf: 68, global: 60 },
+                        { id: 106, dias: -4,  estado: 'FINALIZADA', mant: 65, seg: 55, perf: 72, global: 64 },
+                        { id: 107, dias: -1,  estado: 'FINALIZADA', mant: 68, seg: 58, perf: 75, global: 67 },
+                    ];
+
+                    evaluaciones.forEach(ev => {
+                        db.run(`INSERT OR IGNORE INTO Evaluacion (id, id_aplicacion, fecha, estado, progreso) VALUES (?, 99, datetime('now', ? || ' days'), ?, '{"sonar":"done","zap":"done","k6":"done"}')`, [ev.id, ev.dias, ev.estado]);
+                        db.run(`INSERT OR IGNORE INTO Score (id_evaluacion, puntaje_global, puntaje_mantenibilidad, puntaje_seguridad, puntaje_rendimiento) VALUES (?, ?, ?, ?, ?)`, [ev.id, ev.global, ev.mant, ev.seg, ev.perf]);
+                        
+                        // Resultados vacíos para enlazar hallazgos
+                        db.run(`INSERT OR IGNORE INTO Resultado (id_evaluacion, categoria, herramienta_utilizada, datos) VALUES (?, 'MANTENIBILIDAD', 'SonarQube', '{}')`, [ev.id]);
+                        db.run(`INSERT OR IGNORE INTO Resultado (id_evaluacion, categoria, herramienta_utilizada, datos) VALUES (?, 'SEGURIDAD', 'OWASP ZAP', '{}')`, [ev.id]);
+                        db.run(`INSERT OR IGNORE INTO Resultado (id_evaluacion, categoria, herramienta_utilizada, datos) VALUES (?, 'RENDIMIENTO', 'k6', '{}')`, [ev.id]);
+                    });
+
+                    // Metricas falsas para la última (107)
+                    const metricas = [
+                        { evalId: 107, nombre: 'Complejidad Ciclomática', valor: 8, valorNorm: 85, unidad: '', categoria: 'MANTENIBILIDAD' },
+                        { evalId: 107, nombre: 'Duplicación de Código',   valor: 3.2, valorNorm: 80, unidad: '%', categoria: 'MANTENIBILIDAD' },
+                        { evalId: 107, nombre: 'Vulnerabilidades Altas',  valor: 2,   valorNorm: 40, unidad: '', categoria: 'SEGURIDAD' },
+                        { evalId: 107, nombre: 'Tiempo respuesta p95',    valor: 420, valorNorm: 80, unidad: 'ms', categoria: 'RENDIMIENTO' }
+                    ];
+                    metricas.forEach(m => {
+                        db.run(`INSERT OR IGNORE INTO Metrica (id_evaluacion, nombre, valor, valor_normalizado, unidad, categoria) VALUES (?, ?, ?, ?, ?, ?)`, [m.evalId, m.nombre, m.valor, m.valorNorm, m.unidad, m.categoria]);
+                    });
+
+                    // Hallazgos falsos
+                    setTimeout(() => {
+                        db.get(`SELECT id FROM Resultado WHERE id_evaluacion = 107 AND herramienta_utilizada = 'SonarQube'`, (err, rS) => {
+                            db.get(`SELECT id FROM Resultado WHERE id_evaluacion = 107 AND herramienta_utilizada = 'OWASP ZAP'`, (err, rZ) => {
+                                if (rS) {
+                                    db.run(`INSERT INTO Hallazgo (id_resultado, severidad, categoria_calidad, descripcion, recomendacion) VALUES (?, 'MEDIO', 'MANTENIBILIDAD', 'Complejidad ciclomática alta en módulo de auth.', 'Refactorizar en funciones más pequeñas.')`, [rS.id]);
+                                    db.run(`INSERT INTO Hallazgo (id_resultado, severidad, categoria_calidad, descripcion, recomendacion) VALUES (?, 'BAJO', 'MANTENIBILIDAD', 'Variables no utilizadas detectadas.', 'Limpiar código muerto.')`, [rS.id]);
+                                }
+                                if (rZ) {
+                                    db.run(`INSERT INTO Hallazgo (id_resultado, severidad, categoria_calidad, descripcion, recomendacion) VALUES (?, 'ALTO', 'SEGURIDAD', 'Falta de cabecera Content-Security-Policy (CSP).', 'Implementar middleware Helmet o similar.')`, [rZ.id]);
+                                    db.run(`INSERT INTO Hallazgo (id_resultado, severidad, categoria_calidad, descripcion, recomendacion) VALUES (?, 'MEDIO', 'SEGURIDAD', 'Cookie sin flag HttpOnly.', 'Ajustar configuración de cookies en el servidor.')`, [rZ.id]);
+                                }
+                            });
+                        });
+                    }, 1000);
+                }
+            });
 
             console.log('All tables initialized (diagram-aligned schema).');
         });
