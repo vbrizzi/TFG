@@ -536,7 +536,7 @@ app.get('/api/evaluaciones/:id/detalle', (req, res) => {
 
     const hallazgosQuery = new Promise((resolve, reject) => {
         db.all(
-            `SELECT h.* FROM Hallazgo h JOIN Resultado r ON h.id_resultado = r.id WHERE r.id_evaluacion = ?`,
+            `SELECT h.*, r.herramienta_utilizada FROM Hallazgo h JOIN Resultado r ON h.id_resultado = r.id WHERE r.id_evaluacion = ?`,
             [id], (err, rows) => { if (err) reject(err); else resolve(rows); }
         );
     });
@@ -576,31 +576,45 @@ app.get('/api/evaluaciones/:id/hallazgos', (req, res) => {
 app.get('/api/reporte/:id_evaluacion', async (req, res) => {
     const id = req.params.id_evaluacion;
 
-    db.get(`
-        SELECT e.*, a.nombre as appName, s.puntaje_global, s.puntaje_mantenibilidad, s.puntaje_seguridad, s.puntaje_rendimiento
-        FROM Evaluacion e
-        JOIN Aplicacion a ON e.id_aplicacion = a.id
-        LEFT JOIN Score s ON s.id_evaluacion = e.id
-        WHERE e.id = ?`, [id], async (err, row) => {
+    try {
+        const row = await new Promise((resolve, reject) => {
+            db.get(`
+                SELECT e.*, a.nombre as appName, s.puntaje_global, s.puntaje_mantenibilidad, s.puntaje_seguridad, s.puntaje_rendimiento
+                FROM Evaluacion e
+                JOIN Aplicacion a ON e.id_aplicacion = a.id
+                LEFT JOIN Score s ON s.id_evaluacion = e.id
+                WHERE e.id = ?`, [id], (err, row) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
 
-        if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Evaluación no encontrada' });
 
-        try {
-            const pdfPath = await pdfService.generatePdf(row, row.appName);
+        const hallazgos = await new Promise((resolve, reject) => {
+            db.all(`
+                SELECT h.*, r.herramienta_utilizada 
+                FROM Hallazgo h 
+                JOIN Resultado r ON h.id_resultado = r.id 
+                WHERE r.id_evaluacion = ?
+                ORDER BY CASE h.severidad WHEN 'ALTO' THEN 1 WHEN 'MEDIO' THEN 2 WHEN 'BAJO' THEN 3 ELSE 4 END`,
+                [id], (err, rows) => {
+                if (err) reject(err); else resolve(rows);
+            });
+        });
 
-            // Registrar en tabla Reporte
-            db.run(
-                `INSERT INTO Reporte (id_evaluacion, formato, ruta_archivo) VALUES (?, 'PDF', ?)`,
-                [id, pdfPath]
-            );
+        const pdfPath = await pdfService.generatePdf(row, row.appName, hallazgos);
 
-            res.download(pdfPath);
-        } catch (pdfErr) {
-            console.error('Error generando PDF', pdfErr);
-            res.status(500).json({ error: pdfErr.message });
-        }
-    });
+        // Registrar en tabla Reporte
+        db.run(
+            `INSERT INTO Reporte (id_evaluacion, formato, ruta_archivo) VALUES (?, 'PDF', ?)`,
+            [id, pdfPath]
+        );
+
+        res.download(pdfPath);
+    } catch (err) {
+        console.error('Error generando PDF', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ========== SERVER ==========

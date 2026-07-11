@@ -123,16 +123,18 @@ class SonarService {
         const measures = data.component && data.component.measures ? data.component.measures : [];
         const get = (key) => {
             const m = measures.find(m => m.metric === key);
-            return m ? parseFloat(m.value) || 0 : 0;
+            return m ? parseFloat(m.value) || 0 : null;
         };
 
         return {
-            bugs: get('bugs'),
-            vulnerabilities: get('vulnerabilities'),
-            code_smells: get('code_smells'),
-            complexity: get('complexity'),
-            duplicated_lines_density: get('duplicated_lines_density'),
-            coverage: get('coverage'),
+            bugs:                      get('bugs')                      ?? 0,
+            vulnerabilities:           get('vulnerabilities')           ?? 0,
+            code_smells:               get('code_smells')               ?? 0,
+            complexity:                get('complexity')                ?? 0,
+            duplicated_lines_density:  get('duplicated_lines_density')  ?? 0,
+            coverage:                  get('coverage'),        // null si no hay tests configurados
+            reliability_rating:        get('reliability_rating')        ?? 5, // 1=A … 5=E
+            sqale_rating:              get('sqale_rating')              ?? 5, // 1=A … 5=E
         };
     }
 

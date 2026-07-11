@@ -294,8 +294,22 @@
                 </div>
             </div>
             <div class="cards-row">
-                <div class="card" style="flex:1;"><h3>Scores por Categoría</h3><canvas id="chartRadar" height="150"></canvas></div>
-                <div class="card" style="flex:1;"><h3>Comparación con ejecución anterior</h3><canvas id="chartComparacion" height="150"></canvas></div>
+                <div class="card" style="flex:1;">
+                    <h3>Scores por Categoría</h3>
+                    <canvas id="chartRadar" height="150"></canvas>
+                </div>
+                <div class="card" style="flex:1.2;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                        <h3 style="margin:0;">Comparación de evaluaciones</h3>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <select id="comparacionEvalAdd" style="padding:4px 8px; border-radius:6px; border:1px solid #ddd; font-size:0.85rem;">
+                                <option value="">+ Agregar evaluación…</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="comparacionPills" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; min-height:24px;"></div>
+                    <canvas id="chartComparacion" height="160"></canvas>
+                </div>
             </div>
             <div class="card">
                 <h3>Hallazgos Detectados</h3>
@@ -333,15 +347,15 @@
                 <h3>Resumen Ejecutivo</h3>
                 <p id="repResumen">Seleccione y ejecute una evaluación para generar el reporte.</p>
                 <div class="report-scores" id="repScores"></div>
-                <hr>
-                <h3>Métricas Detalladas</h3>
+              <div class="card" style="margin-bottom:20px;">
+                <h3>Hallazgos Detectados</h3>
                 <table class="data-table">
-                    <thead><tr><th>Métrica</th><th>Valor</th><th>Umbral</th><th>Estado</th></tr></thead>
-                    <tbody id="repMetricasBody">
-                        <tr><td colspan="4" style="text-align:center;color:#999;">Sin datos.</td></tr>
+                    <thead><tr><th>Categoría</th><th>Descripción</th><th>Severidad</th><th>Herramienta</th></tr></thead>
+                    <tbody id="repHallazgosBody">
+                        <tr><td colspan="4" style="text-align:center;color:#999;">Generando reporte...</td></tr>
                     </tbody>
                 </table>
-                <hr>
+            </div>    <hr>
                 <h3>Observaciones</h3>
                 <ul id="repObservaciones" style="padding-left:20px;line-height:1.8;">
                     <li>Ejecute una evaluación para ver las observaciones.</li>

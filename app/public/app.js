@@ -798,41 +798,199 @@ async function cargarDetalleEvaluacion() {
     }
 }
 
+// Estado del comparador de evaluaciones
+const comparacionDatasets = new Map(); // evalId → { label, data, color }
+const COMPARACION_COLORS = [
+    '#6c63ff', '#ff6584', '#43cfbc', '#ffb347', '#4fc3f7',
+    '#a29bfe', '#fd79a8', '#00b894', '#fdcb6e', '#74b9ff'
+];
+
 function actualizarGraficosResultados(data) {
     const score = data.score || {};
 
+    // ── Gráfico Radar — ahora lo maneja renderizarComparacion() ───────────────
     if (chartRadar) { chartRadar.destroy(); chartRadar = null; }
-    if (chartComparacion) { chartComparacion.destroy(); chartComparacion = null; }
 
-    const ctx3 = document.getElementById('chartRadar').getContext('2d');
-    chartRadar = new Chart(ctx3, {
-        type: 'radar',
-        data: {
-            labels: ['Mantenibilidad', 'Seguridad', 'Rendimiento'],
-            datasets: [{
-                label: `Eval #${data.evaluacion.id}`,
-                data: [score.puntaje_mantenibilidad || 0, score.puntaje_seguridad || 0, score.puntaje_rendimiento || 0],
-                backgroundColor: 'rgba(108,99,255,0.2)',
-                borderColor: '#6c63ff',
-                borderWidth: 2
-            }]
-        },
-        options: { responsive: true, scales: { r: { min: 0, max: 100 } }, plugins: { legend: { position: 'bottom' } } }
+    // ── Gráfico de comparación ─────────────────────────────────────────────
+    // Agregar la evaluación actual automáticamente al comparador
+    const evalId   = data.evaluacion.id;
+    const evalData = {
+        label: `Eval #${evalId}`,
+        data:  [score.puntaje_mantenibilidad || 0, score.puntaje_seguridad || 0, score.puntaje_rendimiento || 0],
+        color: COMPARACION_COLORS[0]
+    };
+    comparacionDatasets.clear(); // limpiar al cambiar de evaluación activa
+    comparacionDatasets.set(evalId, evalData);
+
+    // Cargar historial completo de la app para poblar el selector
+    const appId = data.evaluacion.id_aplicacion;
+    poblarSelectorComparacion(appId, evalId).then(() => {
+        // Auto-cargar la evaluación anterior si existe
+        autoCargarEvalAnterior(appId, evalId);
     });
 
-    // Comparación: traer la evaluación anterior de la misma app
+    renderizarComparacion();
+}
+
+async function poblarSelectorComparacion(appId, evalActualId) {
+    try {
+        const res  = await fetch('/api/evaluaciones/' + appId);
+        const evals = await res.json();
+        const sel  = document.getElementById('comparacionEvalAdd');
+
+        // Guardar todas las evaluaciones en data attribute del select para uso posterior
+        sel._allEvals = evals;
+
+        // Poblar opciones (excluir la activa)
+        sel.innerHTML = '<option value="">+ Agregar evaluación…</option>';
+        for (const ev of evals) {
+            if (ev.id === evalActualId) continue;
+            const scoreGlobal = ev.puntaje_global !== null ? ` — Score ${ev.puntaje_global}` : '';
+            const fecha = new Date(ev.fecha).toLocaleDateString('es-AR');
+            const opt = document.createElement('option');
+            opt.value = ev.id;
+            opt.textContent = `Eval #${ev.id} — ${fecha}${scoreGlobal} (${ev.estado})`;
+            sel.appendChild(opt);
+        }
+
+        // Listener del selector
+        sel.onchange = async () => {
+            const id = parseInt(sel.value);
+            if (!id) return;
+            sel.value = '';
+            if (comparacionDatasets.has(id)) return; // ya está en el gráfico
+            await agregarEvalAlComparador(id);
+        };
+    } catch (e) {
+        console.error('Error cargando historial para comparador:', e);
+    }
+}
+
+async function autoCargarEvalAnterior(appId, evalActualId) {
+    const sel = document.getElementById('comparacionEvalAdd');
+    const evals = sel._allEvals || [];
+    // La eval anterior es la primera de la lista que no sea la actual y esté FINALIZADA
+    const anterior = evals.find(ev => ev.id !== evalActualId && ev.estado === 'FINALIZADA');
+    if (anterior) {
+        await agregarEvalAlComparador(anterior.id);
+    }
+}
+
+async function agregarEvalAlComparador(evalId) {
+    try {
+        const res  = await fetch(`/api/evaluaciones/${evalId}/detalle`);
+        const data = await res.json();
+        const score = data.score || {};
+
+        // Asignar color secuencial
+        const colorIdx = comparacionDatasets.size % COMPARACION_COLORS.length;
+
+        comparacionDatasets.set(evalId, {
+            label: `Eval #${evalId} (${new Date(data.evaluacion.fecha).toLocaleDateString('es-AR')})`,
+            data:  [score.puntaje_mantenibilidad || 0, score.puntaje_seguridad || 0, score.puntaje_rendimiento || 0],
+            color: COMPARACION_COLORS[colorIdx]
+        });
+
+        renderizarComparacion();
+    } catch (e) {
+        console.error('Error cargando evaluación para comparador:', e);
+    }
+}
+
+function eliminarEvalDelComparador(evalId) {
+    // No permitir eliminar si solo queda 1 dataset
+    if (comparacionDatasets.size <= 1) return;
+    comparacionDatasets.delete(evalId);
+    renderizarComparacion();
+}
+
+function renderizarComparacion() {
+    // ── Pills ──────────────────────────────────────────────────────────────
+    const pillsContainer = document.getElementById('comparacionPills');
+    pillsContainer.innerHTML = '';
+
+    for (const [id, ds] of comparacionDatasets) {
+        const pill = document.createElement('span');
+        pill.style.cssText = `
+            display:inline-flex; align-items:center; gap:5px;
+            background:${ds.color}22; border:1px solid ${ds.color};
+            color:${ds.color}; border-radius:20px;
+            padding:2px 10px; font-size:0.8rem; cursor:default;
+        `;
+        pill.innerHTML = `
+            <span style="width:8px;height:8px;border-radius:50%;background:${ds.color};display:inline-block;"></span>
+            ${ds.label}
+            <span onclick="eliminarEvalDelComparador(${id})" style="cursor:pointer; font-weight:bold; margin-left:2px; opacity:0.7;" title="Quitar">✕</span>
+        `;
+        pillsContainer.appendChild(pill);
+    }
+
+    // ── Chart ──────────────────────────────────────────────────────────────
+    if (chartComparacion) { chartComparacion.destroy(); chartComparacion = null; }
+
     const ctx4 = document.getElementById('chartComparacion').getContext('2d');
+    const datasets = [];
+    for (const [, ds] of comparacionDatasets) {
+        datasets.push({
+            label: ds.label,
+            data:  ds.data,
+            backgroundColor: ds.color + 'cc',
+            borderColor: ds.color,
+            borderWidth: 1,
+            borderRadius: 4
+        });
+    }
+
     chartComparacion = new Chart(ctx4, {
         type: 'bar',
         data: {
             labels: ['Mantenibilidad', 'Seguridad', 'Rendimiento'],
-            datasets: [{
-                label: `Eval #${data.evaluacion.id}`,
-                data: [score.puntaje_mantenibilidad || 0, score.puntaje_seguridad || 0, score.puntaje_rendimiento || 0],
-                backgroundColor: '#6c63ff'
-            }]
+            datasets
         },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { min: 0, max: 100 } } }
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}/100`
+                    }
+                }
+            },
+            scales: {
+                y: { min: 0, max: 100, ticks: { stepSize: 20 } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // ── Radar Chart ────────────────────────────────────────────────────────
+    if (chartRadar) { chartRadar.destroy(); chartRadar = null; }
+    
+    const ctxRadar = document.getElementById('chartRadar').getContext('2d');
+    const radarDatasets = [];
+    for (const [, ds] of comparacionDatasets) {
+        radarDatasets.push({
+            label: ds.label,
+            data:  ds.data,
+            backgroundColor: ds.color + '33',
+            borderColor: ds.color,
+            borderWidth: 2,
+            pointBackgroundColor: ds.color
+        });
+    }
+
+    chartRadar = new Chart(ctxRadar, {
+        type: 'radar',
+        data: {
+            labels: ['Mantenibilidad', 'Seguridad', 'Rendimiento'],
+            datasets: radarDatasets
+        },
+        options: {
+            responsive: true,
+            scales: { r: { min: 0, max: 100, ticks: { stepSize: 20 } } },
+            plugins: { legend: { position: 'bottom' } }
+        }
     });
 }
 
@@ -862,29 +1020,15 @@ function actualizarReporte(data) {
         <div class="report-score-item"><span class="report-cat">Rendimiento</span><div class="report-bar"><div class="report-bar-fill" style="width:${perf}%;background:#2196f3;"></div></div><span>${Math.round(perf)}/100</span></div>
     `;
 
-    // Métricas
-    const metricasBody = document.getElementById('repMetricasBody');
-    const umbrales = {
-        'Complejidad Ciclomática': { umbral: '≤ 10', check: v => v <= 10 },
-        'Duplicación de Código': { umbral: '≤ 5%', check: v => v <= 5 },
-        'Vulnerabilidades Altas': { umbral: '0', check: v => v === 0 },
-        'Vulnerabilidades Medias': { umbral: '≤ 3', check: v => v <= 3 },
-        'Tiempo respuesta p95': { umbral: '≤ 500ms', check: v => v <= 500 },
-        'Tasa de error': { umbral: '≤ 1%', check: v => v <= 1 }
-    };
-
-    if (data.metricas && data.metricas.length > 0) {
-        metricasBody.innerHTML = data.metricas.map(m => {
-            const u = umbrales[m.nombre];
-            const valorStr = m.unidad ? `${m.valor}${m.unidad}` : m.valor;
-            if (u) {
-                const cumple = u.check(m.valor);
-                return `<tr><td>${m.nombre}</td><td>${valorStr}</td><td>${u.umbral}</td><td><span class="badge ${cumple ? 'badge-success' : 'badge-danger'}">${cumple ? 'Cumple' : 'No cumple'}</span></td></tr>`;
-            }
-            return `<tr><td>${m.nombre}</td><td>${valorStr}</td><td>—</td><td><span class="badge badge-info">Info</span></td></tr>`;
+    // Hallazgos en el Reporte
+    const hallBody = document.getElementById('repHallazgosBody');
+    if (data.hallazgos && data.hallazgos.length > 0) {
+        hallBody.innerHTML = data.hallazgos.map(h => {
+            const sevBadge = h.severidad === 'ALTO' ? 'badge-danger' : h.severidad === 'MEDIO' ? 'badge-warning' : h.severidad === 'BAJO' ? 'badge-info' : 'badge-pending';
+            return `<tr><td>${h.categoria_calidad || h.categoria}</td><td>${h.descripcion}</td><td><span class="badge ${sevBadge}">${h.severidad}</span></td><td>${h.herramienta_utilizada || '—'}</td></tr>`;
         }).join('');
     } else {
-        metricasBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">Sin métricas.</td></tr>';
+        hallBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">No se detectaron hallazgos.</td></tr>';
     }
 
     // Observaciones

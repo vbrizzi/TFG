@@ -9,6 +9,16 @@ const path = require('path');
 class K6Service {
 
     /**
+     * Reemplaza localhost/127.0.0.1 por host.docker.internal para que los
+     * contenedores Docker puedan acceder al servidor que corre en el host.
+     */
+    _resolveDockerUrl(url) {
+        return url
+            .replace(/localhost/g, 'host.docker.internal')
+            .replace(/127\.0\.0\.1/g, 'host.docker.internal');
+    }
+
+    /**
      * @param {string} targetUrl - URL objetivo a testear.
      * @param {string} projectName - Nombre del proyecto.
      * @param {Function} logFn - Función de callback para enviar logs al frontend.
@@ -24,6 +34,8 @@ class K6Service {
         const scriptPath = path.join(scriptsDir, scriptName);
         const reportName = `k6_report_${projectName}.json`;
 
+        // Resolver URL para que funcione desde dentro del contenedor Docker
+        const dockerTargetUrl = this._resolveDockerUrl(targetUrl);
         // Script de k6 con configuración realista
         const k6ScriptContent = `
 import http from 'k6/http';
@@ -39,7 +51,7 @@ export const options = {
 };
 
 export default function () {
-  const res = http.get('${targetUrl}');
+  const res = http.get('${dockerTargetUrl}');
   check(res, {
     'status 200': (r) => r.status === 200,
     'respuesta < 500ms': (r) => r.timings.duration < 500,
@@ -51,6 +63,9 @@ export default function () {
 
         logFn(`[k6] Iniciando prueba de carga y rendimiento...`);
         logFn(`[k6] Target URL: ${targetUrl}`);
+        if (dockerTargetUrl !== targetUrl) {
+            logFn(`[k6] (Docker) URL resuelta: ${dockerTargetUrl}`);
+        }
         logFn(`[k6] Configuración: 10 VUs (usuarios virtuales) durante 30 segundos.`);
         logFn(`[k6] Umbrales: p95 < 500ms, tasa de error < 1%.`);
 
@@ -59,6 +74,7 @@ export default function () {
 
         const dockerArgs = [
             'run', '--rm',
+            '--add-host=host.docker.internal:host-gateway',
             '-v', `${normalizedScriptsDir}:/scripts`,
             '-v', `${normalizedReportsDir}:/reports`,
             'grafana/k6',

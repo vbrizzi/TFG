@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 class PdfService {
-    async generatePdf(evaluationData, appName) {
+    async generatePdf(evaluationData, appName, hallazgos = []) {
         const reportsDir = path.join(__dirname, '..', 'reports', 'pdf');
         if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
 
@@ -167,32 +167,28 @@ class PdfService {
             ${barHtml('Rendimiento',    perf, '#2196f3')}
         </div>
 
-        <!-- MÉTRICAS -->
+        <!-- HALLAZGOS -->
         <div class="section">
-            <div class="section-title">Métricas Detalladas</div>
+            <div class="section-title">Hallazgos Detectados</div>
             <table>
                 <thead>
-                    <tr><th>Categoría</th><th>Herramienta</th><th>Métrica</th><th>Valor</th><th>Umbral</th><th>Estado</th></tr>
+                    <tr><th>Categoría</th><th>Descripción</th><th>Severidad</th><th>Herramienta</th></tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>Mantenibilidad</td><td>SonarQube</td>
-                        <td>Score Normalizado</td>
-                        <td>${mant}/100</td><td>≥ 70</td>
-                        <td><span class="badge ${parseFloat(mant)>=70?'badge-ok':'badge-warn'}">${parseFloat(mant)>=70?'Cumple':'Revisar'}</span></td>
-                    </tr>
-                    <tr>
-                        <td>Seguridad</td><td>OWASP ZAP</td>
-                        <td>Score Normalizado</td>
-                        <td>${seg}/100</td><td>≥ 70</td>
-                        <td><span class="badge ${parseFloat(seg)>=70?'badge-ok':'badge-warn'}">${parseFloat(seg)>=70?'Cumple':'Revisar'}</span></td>
-                    </tr>
-                    <tr>
-                        <td>Rendimiento</td><td>k6</td>
-                        <td>Score Normalizado</td>
-                        <td>${perf}/100</td><td>≥ 70</td>
-                        <td><span class="badge ${parseFloat(perf)>=70?'badge-ok':'badge-warn'}">${parseFloat(perf)>=70?'Cumple':'Revisar'}</span></td>
-                    </tr>
+                    ${hallazgos.length > 0 ? hallazgos.map(h => {
+                        let badgeClass = 'badge-info';
+                        if (h.severidad === 'ALTO') badgeClass = 'badge-err';
+                        else if (h.severidad === 'MEDIO') badgeClass = 'badge-warn';
+                        
+                        return `
+                        <tr>
+                            <td>${h.categoria_calidad || h.categoria || '—'}</td>
+                            <td>${h.descripcion}</td>
+                            <td><span class="badge ${badgeClass}">${h.severidad}</span></td>
+                            <td>${h.herramienta_utilizada || '—'}</td>
+                        </tr>
+                        `;
+                    }).join('') : '<tr><td colspan="4" style="text-align:center;color:#888;">No se detectaron hallazgos.</td></tr>'}
                 </tbody>
             </table>
         </div>

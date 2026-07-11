@@ -9,6 +9,16 @@ const path = require('path');
 class ZapService {
 
     /**
+     * Reemplaza localhost/127.0.0.1 por host.docker.internal para que los
+     * contenedores Docker puedan acceder al servidor que corre en el host.
+     */
+    _resolveDockerUrl(url) {
+        return url
+            .replace(/localhost/g, 'host.docker.internal')
+            .replace(/127\.0\.0\.1/g, 'host.docker.internal');
+    }
+
+    /**
      * @param {string} targetUrl - URL objetivo a escanear.
      * @param {string} projectName - Nombre del proyecto.
      * @param {Function} logFn - Función de callback para enviar logs al frontend.
@@ -21,16 +31,23 @@ class ZapService {
         const reportPath = path.join(reportsDir, reportName);
         const normalizedReportsDir = reportsDir.replace(/\\/g, '/');
 
+        // Resolver URL para que funcione desde dentro del contenedor Docker
+        const dockerTargetUrl = this._resolveDockerUrl(targetUrl);
+
         logFn(`[OWASP ZAP] Iniciando análisis dinámico de seguridad...`);
         logFn(`[OWASP ZAP] Target URL: ${targetUrl}`);
+        if (dockerTargetUrl !== targetUrl) {
+            logFn(`[OWASP ZAP] (Docker) URL resuelta: ${dockerTargetUrl}`);
+        }
         logFn(`[OWASP ZAP] Descargando/preparando imagen Docker de ZAP...`);
 
         const dockerArgs = [
             'run', '--rm',
+            '--add-host=host.docker.internal:host-gateway',
             '-v', `${normalizedReportsDir}:/zap/wrk/:rw`,
             'ghcr.io/zaproxy/zaproxy:stable',
             'zap-baseline.py',
-            '-t', targetUrl,
+            '-t', dockerTargetUrl,
             '-J', reportName,
             '-I'  // No fallar si hay alertas (exit code 0 siempre)
         ];
