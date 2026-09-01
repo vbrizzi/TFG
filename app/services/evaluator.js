@@ -426,27 +426,353 @@ class Evaluator {
 
     // ─────────────────────────────────────────────────────────────────────────
     // ÍNDICE GLOBAL
+    // Ponderación: Seguridad 40%, Mantenibilidad 35%, Rendimiento 25%
     // ─────────────────────────────────────────────────────────────────────────
     calculateGlobalIndex(sonarScore, zapScore, k6Score) {
-        // Ponderación: Seguridad 40%, Mantenibilidad 35%, Rendimiento 25%
-        const global = sonarScore * 0.35 + zapScore * 0.40 + k6Score * 0.25;
+        const W_MANT = 0.35, W_SEG = 0.40, W_REND = 0.25;
+        const global = sonarScore * W_MANT + zapScore * W_SEG + k6Score * W_REND;
         return Math.round(global);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUDITORÍA — Mantenibilidad (SonarQube)
+    // ─────────────────────────────────────────────────────────────────────────
+    buildAuditMantenibilidad(sonarData, score) {
+        if (!sonarData || Object.keys(sonarData).length === 0) {
+            return { omitida: true, motivo: 'Herramienta no ejecutada o sin datos.' };
+        }
+
+        const ratingToScore = (r) => ({ 1: 100, 2: 80, 3: 60, 4: 40, 5: 20 }[Math.round(r)] ?? 20);
+        const ratingLabel   = (r) => ({ 1: 'A',  2: 'B',  3: 'C',  4: 'D',  5: 'E'  }[Math.round(r)] ?? 'E');
+
+        const relR  = sonarData.reliability_rating      || 5;
+        const sqR   = sonarData.sqale_rating            || 5;
+        const dupD  = sonarData.duplicated_lines_density || 0;
+        const cov   = sonarData.coverage;
+
+        const relScore  = ratingToScore(relR);
+        const sqScore   = ratingToScore(sqR);
+        const base      = relScore * 0.5 + sqScore * 0.5;
+
+        let penDup = 0;
+        if (dupD > 40) penDup = -10;
+        else if (dupD > 20) penDup = -5;
+
+        let penCov = 0;
+        if (cov !== null && cov !== undefined) {
+            if (cov === 0) penCov = -10;
+            else if (cov < 20) penCov = -5;
+        }
+
+        const pasos = [
+            {
+                concepto: `Rating Fiabilidad: ${ratingLabel(relR)} → ${relScore}/100`,
+                valor_bruto: `${ratingLabel(relR)} (rating interno: ${relR})`,
+                peso: '50%',
+                aporte: parseFloat((relScore * 0.5).toFixed(2))
+            },
+            {
+                concepto: `Rating Mantenibilidad (SQALE): ${ratingLabel(sqR)} → ${sqScore}/100`,
+                valor_bruto: `${ratingLabel(sqR)} (rating interno: ${sqR})`,
+                peso: '50%',
+                aporte: parseFloat((sqScore * 0.5).toFixed(2))
+            },
+            {
+                concepto: `Base calculada (50%×${relScore} + 50%×${sqScore})`,
+                valor_bruto: parseFloat(base.toFixed(2)),
+                peso: '—',
+                aporte: null
+            }
+        ];
+
+        if (penDup !== 0) {
+            pasos.push({
+                concepto: `Penalidad por duplicación de código: ${dupD.toFixed(1)}% ${dupD > 40 ? '(>40%)' : '(>20%)'}`,
+                valor_bruto: `${dupD.toFixed(1)}%`,
+                peso: '—',
+                aporte: penDup
+            });
+        }
+        if (penCov !== 0) {
+            pasos.push({
+                concepto: `Penalidad por cobertura de tests baja: ${(cov ?? 0).toFixed(1)}%`,
+                valor_bruto: `${(cov ?? 0).toFixed(1)}%`,
+                peso: '—',
+                aporte: penCov
+            });
+        }
+
+        pasos.push({
+            concepto: '✅ Score final Mantenibilidad (acotado 0–100)',
+            valor_bruto: score,
+            peso: '—',
+            aporte: null,
+            es_resultado: true
+        });
+
+        return {
+            omitida: false,
+            formula: 'Base = 50%×ScoreFiabilidad + 50%×ScoreMantenibilidad — penalidades por duplicación y cobertura',
+            entradas: {
+                reliability_rating:       relR,
+                sqale_rating:             sqR,
+                bugs:                     sonarData.bugs || 0,
+                code_smells:              sonarData.code_smells || 0,
+                duplicated_lines_density: dupD,
+                coverage:                 cov ?? 'N/A'
+            },
+            pasos
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUDITORÍA — Seguridad (OWASP ZAP)
+    // ─────────────────────────────────────────────────────────────────────────
+    buildAuditSeguridad(zapData, score, highCount, mediumCount, lowCount, infoCount) {
+        if (!zapData || Object.keys(zapData).length === 0) {
+            return { omitida: true, motivo: 'Herramienta no ejecutada o sin datos.' };
+        }
+
+        const pasos = [];
+
+        if (highCount > 0) {
+            pasos.push({
+                concepto: 'Presencia de vulnerabilidades HIGH → score máximo limitado a 50',
+                valor_bruto: `${highCount} alerta(s) HIGH`,
+                peso: '—',
+                aporte: null
+            });
+            pasos.push({
+                concepto: `Score base: 50 − (${highCount}−1)×5`,
+                valor_bruto: Math.max(5, 50 - (highCount - 1) * 5),
+                peso: '—',
+                aporte: null
+            });
+            if (mediumCount > 0) {
+                pasos.push({
+                    concepto: `Penalidad adicional por ${mediumCount} alerta(s) MEDIUM (×3 pts c/u)`,
+                    valor_bruto: `${mediumCount} alertas`,
+                    peso: '—',
+                    aporte: -(mediumCount * 3)
+                });
+            }
+            if (lowCount > 0) {
+                pasos.push({
+                    concepto: `Penalidad adicional por ${lowCount} alerta(s) LOW (×1 pt c/u)`,
+                    valor_bruto: `${lowCount} alertas`,
+                    peso: '—',
+                    aporte: -(lowCount * 1)
+                });
+            }
+        } else {
+            pasos.push({
+                concepto: 'Sin alertas HIGH → escala completa 0–100',
+                valor_bruto: '0 alertas HIGH',
+                peso: '—',
+                aporte: null
+            });
+            pasos.push({
+                concepto: 'Score base: 100',
+                valor_bruto: 100,
+                peso: '—',
+                aporte: null
+            });
+            if (mediumCount > 0) {
+                pasos.push({
+                    concepto: `Penalidad por ${mediumCount} alerta(s) MEDIUM (×7 pts c/u)`,
+                    valor_bruto: `${mediumCount} alertas`,
+                    peso: '—',
+                    aporte: -(mediumCount * 7)
+                });
+            }
+            if (lowCount > 0) {
+                pasos.push({
+                    concepto: `Penalidad por ${lowCount} alerta(s) LOW (×2 pts c/u)`,
+                    valor_bruto: `${lowCount} alertas`,
+                    peso: '—',
+                    aporte: -(lowCount * 2)
+                });
+            }
+        }
+
+        pasos.push({
+            concepto: '✅ Score final Seguridad (acotado 0–100)',
+            valor_bruto: score,
+            peso: '—',
+            aporte: null,
+            es_resultado: true
+        });
+
+        return {
+            omitida: false,
+            formula: 'Si hay alertas HIGH: base=50−(n−1)×5, penalidades suaves por MEDIUM/LOW. Sin HIGH: base=100, penalidades por MEDIUM(×7) y LOW(×2).',
+            entradas: {
+                alertas_high:   highCount,
+                alertas_medium: mediumCount,
+                alertas_low:    lowCount,
+                alertas_info:   infoCount
+            },
+            pasos
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUDITORÍA — Rendimiento (k6)
+    // ─────────────────────────────────────────────────────────────────────────
+    buildAuditRendimiento(k6Data, score, latencyScore, errorScore, p95, errorPct) {
+        if (!k6Data || !k6Data.metrics || Object.keys(k6Data.metrics).length === 0) {
+            return { omitida: true, motivo: 'Herramienta no ejecutada o sin datos.' };
+        }
+
+        const pasos = [
+            {
+                concepto: `Score de Latencia (p95=${p95 !== null ? p95.toFixed(0)+'ms' : 'N/A'})`,
+                valor_bruto: p95 !== null ? `${p95.toFixed(0)} ms` : 'N/A',
+                peso: '60%',
+                aporte: parseFloat((latencyScore * 0.6).toFixed(2))
+            },
+            {
+                concepto: `Score de Tasa de Error (${errorPct}%)`,
+                valor_bruto: `${errorPct}%`,
+                peso: '40%',
+                aporte: parseFloat((errorScore * 0.4).toFixed(2))
+            },
+            {
+                concepto: `Score base combinado: 60%×${Math.round(latencyScore)} + 40%×${Math.round(errorScore)}`,
+                valor_bruto: parseFloat((latencyScore * 0.6 + errorScore * 0.4).toFixed(2)),
+                peso: '—',
+                aporte: null
+            },
+            {
+                concepto: '✅ Score final Rendimiento (acotado 0–100)',
+                valor_bruto: score,
+                peso: '—',
+                aporte: null,
+                es_resultado: true
+            }
+        ];
+
+        // Detalle de la escala de latencia usada
+        let escalaLatencia = '';
+        if (p95 !== null) {
+            if (p95 <= 300)       escalaLatencia = 'p95 ≤ 300ms → latencia=100 (óptimo)';
+            else if (p95 <= 500)  escalaLatencia = 'p95 300–500ms → degradación suave 100→90';
+            else if (p95 <= 1000) escalaLatencia = 'p95 500–1000ms → umbral superado, 90→70';
+            else if (p95 <= 2000) escalaLatencia = 'p95 1000–2000ms → degradación seria, 70→50';
+            else                  escalaLatencia = 'p95 >2000ms → degradación fuerte (mín 20)';
+        }
+
+        return {
+            omitida: false,
+            formula: 'ScoreRendimiento = 60%×ScoreLatencia + 40%×ScoreErrorRate',
+            umbrales: {
+                latencia: 'umbral objetivo: p95 ≤ 500ms',
+                error_rate: 'umbral objetivo: tasa de error ≤ 1%'
+            },
+            escala_latencia_aplicada: escalaLatencia,
+            entradas: {
+                p95_ms:           p95 !== null ? parseFloat(p95.toFixed(2)) : null,
+                tasa_error_pct:   errorPct
+            },
+            pasos
+        };
     }
 
     /**
      * Función principal del motor de scoring.
-     * Retorna un objeto enriquecido con scores, hallazgos y métricas.
+     * Retorna un objeto enriquecido con scores, hallazgos, métricas y auditoría completa.
      */
     processReports(sonarData, zapData, k6Data) {
         const sonarResult = this.evaluateSonar(sonarData);
         const zapResult   = this.evaluateZap(zapData);
         const k6Result    = this.evaluateK6(k6Data);
 
-        const globalIndex = this.calculateGlobalIndex(
-            sonarResult.score,
-            zapResult.score,
-            k6Result.score
-        );
+        const W_MANT = 0.35, W_SEG = 0.40, W_REND = 0.25;
+        const globalRaw = sonarResult.score * W_MANT + zapResult.score * W_SEG + k6Result.score * W_REND;
+        const globalIndex = Math.round(globalRaw);
+
+        // ── Extraer contadores de ZAP para la auditoría ──────────────────────
+        let zapHigh = 0, zapMedium = 0, zapLow = 0, zapInfo = 0;
+        if (zapData && zapData.site) {
+            for (const site of zapData.site) {
+                for (const alert of (site.alerts || [])) {
+                    const risk = parseInt(alert.riskcode);
+                    if (risk === 3) zapHigh++;
+                    else if (risk === 2) zapMedium++;
+                    else if (risk === 1) zapLow++;
+                    else zapInfo++;
+                }
+            }
+        }
+
+        // ── Extraer métricas de k6 para la auditoría ─────────────────────────
+        let k6P95 = null, k6ErrorPct = 0, k6LatScore = 100, k6ErrScore = 100;
+        if (k6Data && k6Data.metrics) {
+            const dur  = k6Data.metrics.http_req_duration;
+            const fail = k6Data.metrics.http_req_failed;
+            if (dur && dur.values) {
+                k6P95 = dur.values['p(95)'] ?? null;
+                if (k6P95 !== null) {
+                    if (k6P95 <= 300)       k6LatScore = 100;
+                    else if (k6P95 <= 500)  k6LatScore = 100 - ((k6P95 - 300) / 200) * 10;
+                    else if (k6P95 <= 1000) k6LatScore = 90  - ((k6P95 - 500) / 500) * 20;
+                    else if (k6P95 <= 2000) k6LatScore = 70  - ((k6P95 - 1000) / 1000) * 20;
+                    else                    k6LatScore = Math.max(20, 50 - ((k6P95 - 2000) / 2000) * 30);
+                }
+            }
+            if (fail && fail.values) {
+                const rate = fail.values.rate || 0;
+                k6ErrorPct = parseFloat((rate * 100).toFixed(2));
+                if (rate <= 0.005)       k6ErrScore = 100;
+                else if (rate <= 0.01)   k6ErrScore = 95;
+                else if (rate <= 0.05)   k6ErrScore = 95 - ((rate - 0.01) / 0.04) * 20;
+                else if (rate <= 0.20)   k6ErrScore = 75 - ((rate - 0.05) / 0.15) * 45;
+                else                     k6ErrScore = Math.max(10, 30 - ((rate - 0.20) / 0.80) * 20);
+            }
+        }
+
+        // ── Construir auditoría completa ──────────────────────────────────────
+        const auditoria = {
+            mantenibilidad: this.buildAuditMantenibilidad(sonarData, sonarResult.score),
+            seguridad:      this.buildAuditSeguridad(zapData, zapResult.score, zapHigh, zapMedium, zapLow, zapInfo),
+            rendimiento:    this.buildAuditRendimiento(k6Data, k6Result.score, k6LatScore, k6ErrScore, k6P95, k6ErrorPct),
+            global: {
+                formula: `IGC = ${W_MANT*100}%×Mantenibilidad + ${W_SEG*100}%×Seguridad + ${W_REND*100}%×Rendimiento`,
+                pesos: {
+                    mantenibilidad: `${W_MANT*100}%`,
+                    seguridad:      `${W_SEG*100}%`,
+                    rendimiento:    `${W_REND*100}%`
+                },
+                pasos: [
+                    {
+                        concepto: `Mantenibilidad: ${sonarResult.score} × ${W_MANT*100}%`,
+                        valor_bruto: sonarResult.score,
+                        peso: `${W_MANT*100}%`,
+                        aporte: parseFloat((sonarResult.score * W_MANT).toFixed(2))
+                    },
+                    {
+                        concepto: `Seguridad: ${zapResult.score} × ${W_SEG*100}%`,
+                        valor_bruto: zapResult.score,
+                        peso: `${W_SEG*100}%`,
+                        aporte: parseFloat((zapResult.score * W_SEG).toFixed(2))
+                    },
+                    {
+                        concepto: `Rendimiento: ${k6Result.score} × ${W_REND*100}%`,
+                        valor_bruto: k6Result.score,
+                        peso: `${W_REND*100}%`,
+                        aporte: parseFloat((k6Result.score * W_REND).toFixed(2))
+                    },
+                    {
+                        concepto: `✅ Índice Global de Calidad (redondeado)`,
+                        valor_bruto: globalIndex,
+                        peso: '—',
+                        aporte: null,
+                        es_resultado: true
+                    }
+                ],
+                score_final: globalIndex
+            }
+        };
 
         return {
             scores: {
@@ -464,7 +790,8 @@ class Evaluator {
                 ...sonarResult.metricas,
                 ...zapResult.metricas,
                 ...k6Result.metricas
-            ]
+            ],
+            auditoria
         };
     }
 }

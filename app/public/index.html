@@ -320,7 +320,24 @@
                     </tbody>
                 </table>
             </div>
+            <div class="card" id="auditPanel" style="display:none;">
+                <div class="audit-header" onclick="toggleAuditPanel()" id="auditHeaderBtn" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none;">
+                    <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-microscope" style="color:#7c3aed;"></i>
+                        Auditoría del Modelo de Scoring
+                        <span style="font-size:0.75rem; font-weight:400; color:#7c3aed; background:#f3f0ff; padding:2px 8px; border-radius:99px;">TRAZABILIDAD</span>
+                    </h3>
+                    <i class="fas fa-chevron-down" id="auditChevron" style="color:#7c3aed; transition: transform 0.25s;"></i>
+                </div>
+                <div id="auditContent" style="display:none; margin-top:16px;">
+                    <p style="font-size:0.85rem; color:#666; margin-bottom:16px;">
+                        Desglose paso a paso de cómo el motor calculó cada score a partir de los datos crudos de las herramientas.
+                    </p>
+                    <div id="auditBody"></div>
+                </div>
+            </div>
             <div class="form-actions"><button class="btn btn-primary" onclick="showScreen('reporte')"><i class="fas fa-file-pdf"></i> Generar Reporte</button></div>
+
         </section>
 
         <!-- ===== PANTALLA 6: REPORTE ===== -->

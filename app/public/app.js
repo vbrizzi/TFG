@@ -783,6 +783,9 @@ async function cargarDetalleEvaluacion() {
             hallBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">No se detectaron hallazgos.</td></tr>';
         }
 
+        // Auditoría del modelo de scoring
+        renderAuditoria(data.auditoria);
+
         // Guardar datos para el reporte
         window.lastEvalId = evalId;
         window.lastEvalData = data;
@@ -796,6 +799,116 @@ async function cargarDetalleEvaluacion() {
     } catch (e) {
         console.error('Error cargando detalle:', e);
     }
+}
+
+// ===== AUDITORÍA DEL MODELO DE SCORING =====
+
+function toggleAuditPanel() {
+    const content  = document.getElementById('auditContent');
+    const chevron  = document.getElementById('auditChevron');
+    const isOpen   = content.style.display !== 'none';
+    content.style.display = isOpen ? 'none' : 'block';
+    chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function renderAuditoria(auditoria) {
+    const panel = document.getElementById('auditPanel');
+    const body  = document.getElementById('auditBody');
+
+    if (!auditoria) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'block';
+
+    const dimensiones = [
+        { key: 'mantenibilidad', label: 'Mantenibilidad',   icon: 'fa-code', color: '#4caf50', score: auditoria.mantenibilidad },
+        { key: 'seguridad',      label: 'Seguridad',         icon: 'fa-shield-alt', color: '#ff9800', score: auditoria.seguridad },
+        { key: 'rendimiento',    label: 'Rendimiento',       icon: 'fa-tachometer-alt', color: '#2196f3', score: auditoria.rendimiento },
+        { key: 'global',         label: 'Índice Global (IGC)', icon: 'fa-star', color: '#7c3aed', score: auditoria.global, esGlobal: true }
+    ];
+
+    body.innerHTML = dimensiones.map(dim => {
+        const d = dim.score;
+        if (!d) return '';
+
+        // Dimensión omitida
+        if (d.omitida) {
+            return `
+            <div style="margin-bottom:20px; padding:12px 16px; background:#f9f9f9; border-radius:8px; border-left:4px solid #ccc;">
+                <div style="font-weight:600; color:#888; display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                    <i class="fas ${dim.icon}"></i> ${dim.label}
+                    <span style="font-size:0.75rem; background:#eee; color:#888; padding:2px 8px; border-radius:99px;">OMITIDA</span>
+                </div>
+                <p style="font-size:0.85rem; color:#aaa; margin:0;">${d.motivo}</p>
+            </div>`;
+        }
+
+        // Entradas raw (solo dimensiones no globales)
+        let entradasHtml = '';
+        if (d.entradas && !dim.esGlobal) {
+            const filas = Object.entries(d.entradas).map(([k, v]) =>
+                `<tr><td style="color:#888; padding:3px 8px; white-space:nowrap;">${k}</td><td style="padding:3px 8px; font-family:monospace;">${v}</td></tr>`
+            ).join('');
+            entradasHtml = `
+            <div style="margin-bottom:12px;">
+                <p style="font-size:0.78rem; font-weight:600; color:#999; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Datos de entrada</p>
+                <table style="font-size:0.82rem; border-collapse:collapse; width:100%; max-width:520px;">
+                    <tbody>${filas}</tbody>
+                </table>
+            </div>`;
+        }
+
+        // Escala de latencia (solo rendimiento)
+        let escalaHtml = '';
+        if (d.escala_latencia_aplicada) {
+            escalaHtml = `<p style="font-size:0.8rem; color:#555; background:#f0f4ff; padding:6px 10px; border-radius:6px; margin-bottom:12px;"><i class="fas fa-info-circle" style="color:#2196f3;"></i> <strong>Escala aplicada:</strong> ${d.escala_latencia_aplicada}</p>`;
+        }
+
+        // Tabla de pasos
+        const pasosHtml = (d.pasos || []).map(p => {
+            const esResult = p.es_resultado;
+            const aporteStr = p.aporte !== null && p.aporte !== undefined
+                ? (p.aporte >= 0 ? `<span style="color:#4caf50;">+${p.aporte} pt</span>` : `<span style="color:#f44336;">${p.aporte} pt</span>`)
+                : '—';
+            return `
+            <tr style="${esResult ? `background:#f3f0ff; font-weight:600;` : ''}">
+                <td style="padding:6px 10px; font-size:0.84rem;">${p.concepto}</td>
+                <td style="padding:6px 10px; font-size:0.84rem; text-align:center; font-family:monospace; white-space:nowrap;">${p.valor_bruto ?? '—'}</td>
+                <td style="padding:6px 10px; font-size:0.84rem; text-align:center; white-space:nowrap;">${p.peso || '—'}</td>
+                <td style="padding:6px 10px; font-size:0.84rem; text-align:center; white-space:nowrap;">${aporteStr}</td>
+            </tr>`;
+        }).join('');
+
+        return `
+        <div style="margin-bottom:24px; border:1px solid #e8e8e8; border-radius:10px; overflow:hidden;">
+            <div style="background:${dim.color}18; border-bottom:2px solid ${dim.color}; padding:10px 16px; display:flex; align-items:center; gap:10px;">
+                <i class="fas ${dim.icon}" style="color:${dim.color}; font-size:1rem;"></i>
+                <span style="font-weight:600; font-size:0.95rem; color:${dim.color};">${dim.label}</span>
+                ${dim.esGlobal ? '' : `<span style="font-size:0.78rem; color:#666; margin-left:auto;"><em>${d.formula}</em></span>`}
+            </div>
+            <div style="padding:16px;">
+                ${entradasHtml}
+                ${escalaHtml}
+                <p style="font-size:0.78rem; font-weight:600; color:#999; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Cálculo paso a paso</p>
+                <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#f5f5f5; font-size:0.78rem; text-transform:uppercase; letter-spacing:.04em;">
+                            <th style="padding:6px 10px; text-align:left; color:#888; width:55%;">Concepto</th>
+                            <th style="padding:6px 10px; text-align:center; color:#888; width:20%;">Valor</th>
+                            <th style="padding:6px 10px; text-align:center; color:#888; width:10%;">Peso</th>
+                            <th style="padding:6px 10px; text-align:center; color:#888; width:15%;">Aporte</th>
+                        </tr>
+                    </thead>
+                    <tbody>${pasosHtml}</tbody>
+                </table>
+                </div>
+                ${dim.esGlobal ? `<p style="font-size:0.8rem; color:#555; margin-top:10px; font-style:italic;">${d.formula}</p>` : ''}
+            </div>
+        </div>`;
+    }).join('');
 }
 
 // Estado del comparador de evaluaciones
@@ -930,7 +1043,10 @@ function renderizarComparacion() {
 
     const ctx4 = document.getElementById('chartComparacion').getContext('2d');
     const datasets = [];
-    for (const [, ds] of comparacionDatasets) {
+    // Ordenar por evalId ascendente: más viejo a la izquierda, más reciente a la derecha
+    // Esto da sensación de progreso creciente de izquierda a derecha
+    const datasetsOrdenados = [...comparacionDatasets.entries()].sort(([idA], [idB]) => idA - idB);
+    for (const [, ds] of datasetsOrdenados) {
         datasets.push({
             label: ds.label,
             data:  ds.data,
@@ -940,6 +1056,7 @@ function renderizarComparacion() {
             borderRadius: 4
         });
     }
+
 
     chartComparacion = new Chart(ctx4, {
         type: 'bar',

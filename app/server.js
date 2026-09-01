@@ -92,6 +92,14 @@ app.get('/api/evaluar/logs/:id/:tool', (req, res) => {
     });
 });
 
+// ========== MIGRACIÓN: agregar columna auditoria_json si no existe ==========
+db.run(`ALTER TABLE Score ADD COLUMN auditoria_json TEXT`, (err) => {
+    // Ignorar error si la columna ya existe (código SQLITE_ERROR)
+    if (err && !err.message.includes('duplicate column')) {
+        console.warn('[DB Migration] auditoria_json:', err.message);
+    }
+});
+
 // ========== HEALTH ==========
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'NFR Framework Orchestrator is running' });
@@ -381,10 +389,10 @@ app.post('/api/evaluar', async (req, res) => {
                 insertMetrica.finalize();
             }
 
-            // 10. Insertar Score
+            // 10. Insertar Score (con auditoría del modelo)
             db.run(
-                `INSERT INTO Score (id_evaluacion, puntaje_global, puntaje_mantenibilidad, puntaje_seguridad, puntaje_rendimiento) VALUES (?, ?, ?, ?, ?)`,
-                [evalId, processed.scores.global, processed.scores.quality, processed.scores.security, processed.scores.performance]
+                `INSERT INTO Score (id_evaluacion, puntaje_global, puntaje_mantenibilidad, puntaje_seguridad, puntaje_rendimiento, auditoria_json) VALUES (?, ?, ?, ?, ?, ?)`,
+                [evalId, processed.scores.global, processed.scores.quality, processed.scores.security, processed.scores.performance, JSON.stringify(processed.auditoria || null)]
             );
 
             // 11. Actualizar estado a FINALIZADA
@@ -524,7 +532,11 @@ app.get('/api/evaluaciones/:id/detalle', (req, res) => {
 
     const scoreQuery = new Promise((resolve, reject) => {
         db.get(`SELECT * FROM Score WHERE id_evaluacion = ?`, [id], (err, row) => {
-            if (err) reject(err); else resolve(row);
+            if (err) return reject(err);
+            if (row && row.auditoria_json) {
+                try { row.auditoria = JSON.parse(row.auditoria_json); } catch(e) { row.auditoria = null; }
+            }
+            resolve(row);
         });
     });
 
@@ -550,7 +562,9 @@ app.get('/api/evaluaciones/:id/detalle', (req, res) => {
     Promise.all([evalQuery, scoreQuery, resultadosQuery, hallazgosQuery, metricasQuery])
         .then(([evaluacion, score, resultados, hallazgos, metricas]) => {
             if (!evaluacion) return res.status(404).json({ error: 'Evaluación no encontrada' });
-            res.json({ evaluacion, score, resultados, hallazgos, metricas });
+            // Exponer auditoría separada del campo raw para no contaminar el objeto score
+            const auditoria = score ? (score.auditoria || null) : null;
+            res.json({ evaluacion, score, resultados, hallazgos, metricas, auditoria });
         })
         .catch(err => res.status(500).json({ error: err.message }));
 });
